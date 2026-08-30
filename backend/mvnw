@@ -1,0 +1,3 @@
+#!/bin/sh
+MAVEN_BIN="/Users/apple/.gemini/antigravity/brain/0157b59e-462c-47cf-bbcd-92de4d52368a/scratch/apache-maven-3.9.6/bin/mvn"
+exec "$MAVEN_BIN" "$@"
