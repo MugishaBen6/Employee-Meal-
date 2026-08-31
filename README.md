@@ -108,16 +108,17 @@ The application will launch on `http://localhost:5173`.
 
 ---
 
-## Pre-loaded Development Login Credentials
+## Administrator Initialization & Real Authentication
 
-| Role | Username | Password | Default Redirect |
-| :--- | :--- | :--- | :--- |
-| **System Admin** | `admin` | `Password123!` | `/admin/dashboard` |
-| **Managing Director** | `director` | `Password123!` | `/director/dashboard` |
-| **Senior Accountant** | `accountant1` | `Password123!` | `/accountant/dashboard` |
-| **Accountant 2** | `accountant2` | `Password123!` | `/accountant/dashboard` |
-| **Accountant 3** | `accountant3` | `Password123!` | `/accountant/dashboard` |
-| **HR Manager** | `hr` | `Password123!` | `/hr/dashboard` |
+1. **Master Administrator Setup**:
+   - On initial launch with an empty database, navigate to `http://localhost:5173/setup-admin` (or click the banner on the login screen).
+   - Enter your administrator name, username, email, and password.
+   - Once initialized, the `/setup-admin` endpoint is permanently locked against further use.
+
+2. **User Management & Registration**:
+   - New operators register via `http://localhost:5173/register`.
+   - Accounts are created in `PENDING_APPROVAL` status.
+   - The Administrator approves users and assigns roles (`ADMIN`, `MANAGING_DIRECTOR`, `ACCOUNTANT`, `HR`) on the **Users** management page.
 
 ---
 

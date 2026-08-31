@@ -10,8 +10,8 @@ Base URL: `http://localhost:8080/api`
 - **Request Body**:
 ```json
 {
-  "usernameOrEmail": "admin",
-  "password": "Password123!"
+  "usernameOrEmail": "your-username",
+  "password": "your-secure-password"
 }
 ```
 - **Response**:
