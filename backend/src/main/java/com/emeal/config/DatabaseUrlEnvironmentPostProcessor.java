@@ -12,9 +12,6 @@ import java.util.Map;
 /**
  * Automatically normalizes database connection environment variables (DB_URL, DATABASE_URL, SPRING_DATASOURCE_URL)
  * to ensure seamless compatibility with cloud PostgreSQL providers (Neon, Render, Supabase, Railway).
- *
- * Supports standard URI formats (e.g. postgresql://user:pass@host/db?sslmode=require)
- * as well as standard JDBC formats (e.g. jdbc:postgresql://host/db?sslmode=require).
  */
 public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
@@ -27,8 +24,22 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
         if (rawUrl == null || rawUrl.isBlank()) {
             rawUrl = environment.getProperty("SPRING_DATASOURCE_URL");
         }
+        if (rawUrl == null || rawUrl.isBlank()) {
+            rawUrl = System.getenv("DB_URL");
+        }
+        if (rawUrl == null || rawUrl.isBlank()) {
+            rawUrl = System.getenv("DATABASE_URL");
+        }
+        if (rawUrl == null || rawUrl.isBlank()) {
+            rawUrl = System.getenv("SPRING_DATASOURCE_URL");
+        }
 
         if (rawUrl == null || rawUrl.isBlank()) {
+            System.out.println("================================================================================");
+            System.out.println("[DatabaseConfig] NOTICE: No cloud DB_URL or DATABASE_URL detected.");
+            System.out.println("[DatabaseConfig] Using default local connection: jdbc:postgresql://localhost:5432/employee_meal_db");
+            System.out.println("[DatabaseConfig] If running on Render/Cloud, please add DB_URL in the Environment Variables tab.");
+            System.out.println("================================================================================");
             return;
         }
 
@@ -41,17 +52,21 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
                 String userInfo = uri.getUserInfo();
                 if (userInfo != null && userInfo.contains(":")) {
                     String[] parts = userInfo.split(":", 2);
-                    if (environment.getProperty("DB_USERNAME") == null && environment.getProperty("spring.datasource.username") == null) {
+                    String dbUser = environment.getProperty("DB_USERNAME");
+                    if (dbUser == null || dbUser.isBlank() || dbUser.equals("postgres")) {
                         customProperties.put("spring.datasource.username", parts[0]);
+                        customProperties.put("DB_USERNAME", parts[0]);
                     }
-                    if (environment.getProperty("DB_PASSWORD") == null && environment.getProperty("spring.datasource.password") == null) {
+                    String dbPass = environment.getProperty("DB_PASSWORD");
+                    if (dbPass == null || dbPass.isBlank() || dbPass.equals("postgres")) {
                         customProperties.put("spring.datasource.password", parts[1]);
+                        customProperties.put("DB_PASSWORD", parts[1]);
                     }
                 }
 
                 String host = uri.getHost();
                 int port = uri.getPort() > 0 ? uri.getPort() : 5432;
-                String path = uri.getPath() != null ? uri.getPath() : "/employee_meal_db";
+                String path = uri.getPath() != null && !uri.getPath().isBlank() ? uri.getPath() : "/neondb";
                 String query = uri.getQuery();
 
                 String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + path;
@@ -63,14 +78,17 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
 
                 customProperties.put("spring.datasource.url", jdbcUrl);
                 customProperties.put("DB_URL", jdbcUrl);
+                System.out.println("[DatabaseConfig] Normalized postgres:// URI to JDBC URL: " + jdbcUrl);
             } catch (Exception e) {
                 String jdbcUrl = url.startsWith("jdbc:") ? url : "jdbc:" + url;
                 customProperties.put("spring.datasource.url", jdbcUrl);
                 customProperties.put("DB_URL", jdbcUrl);
+                System.out.println("[DatabaseConfig] Formatted JDBC URL: " + jdbcUrl);
             }
         } else if (url.startsWith("jdbc:postgresql://") || url.startsWith("jdbc:h2:")) {
             customProperties.put("spring.datasource.url", url);
             customProperties.put("DB_URL", url);
+            System.out.println("[DatabaseConfig] Using configured JDBC URL: " + url);
         }
 
         if (!customProperties.isEmpty()) {
