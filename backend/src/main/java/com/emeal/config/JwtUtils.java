@@ -11,6 +11,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
 
 @Component
@@ -25,7 +27,35 @@ public class JwtUtils {
     private int jwtExpirationMs;
 
     private SecretKey key() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        byte[] keyBytes = null;
+        if (jwtSecret != null && jwtSecret.matches("^[0-9a-fA-F]+$") && jwtSecret.length() >= 64) {
+            try {
+                int len = jwtSecret.length();
+                keyBytes = new byte[len / 2];
+                for (int i = 0; i < len; i += 2) {
+                    keyBytes[i / 2] = (byte) ((Character.digit(jwtSecret.charAt(i), 16) << 4)
+                            + Character.digit(jwtSecret.charAt(i + 1), 16));
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (keyBytes == null || keyBytes.length < 32) {
+            try {
+                keyBytes = Decoders.BASE64.decode(jwtSecret);
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (keyBytes == null || keyBytes.length < 32) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                keyBytes = md.digest((jwtSecret != null ? jwtSecret : "fallback-default-secret-key-employee-meal").getBytes(StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                logger.error("Failed to digest JWT secret with SHA-256: {}", e.getMessage());
+            }
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateJwtToken(Authentication authentication) {
