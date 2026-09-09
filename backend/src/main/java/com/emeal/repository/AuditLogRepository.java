@@ -14,15 +14,15 @@ import java.time.LocalDateTime;
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     @Query("SELECT a FROM AuditLog a WHERE " +
-           "(:username IS NULL OR LOWER(a.username) LIKE LOWER(CONCAT('%', :username, '%'))) AND " +
-           "(:userRole IS NULL OR a.userRole = :userRole) AND " +
-           "(:action IS NULL OR LOWER(a.action) LIKE LOWER(CONCAT('%', :action, '%'))) AND " +
-           "(:startDate IS NULL OR a.timestamp >= :startDate) AND " +
-           "(:endDate IS NULL OR a.timestamp <= :endDate)")
+           "(cast(:username as String) IS NULL OR LOWER(a.username) LIKE LOWER(CONCAT('%', :username, '%'))) AND " +
+           "(cast(:userRole as String) IS NULL OR a.userRole = :userRole) AND " +
+           "(cast(:action as String) IS NULL OR LOWER(a.action) LIKE LOWER(CONCAT('%', :action, '%'))) AND " +
+           "(cast(:startDate as LocalDateTime) IS NULL OR a.timestamp >= :startDate) AND " +
+           "(cast(:endDate as LocalDateTime) IS NULL OR a.timestamp <= :endDate)")
     Page<AuditLog> searchAuditLogs(@Param("username") String username,
-                                   @Param("userRole") String userRole,
-                                   @Param("action") String action,
-                                   @Param("startDate") LocalDateTime startDate,
-                                   @Param("endDate") LocalDateTime endDate,
-                                   Pageable pageable);
+                                    @Param("userRole") String userRole,
+                                    @Param("action") String action,
+                                    @Param("startDate") LocalDateTime startDate,
+                                    @Param("endDate") LocalDateTime endDate,
+                                    Pageable pageable);
 }

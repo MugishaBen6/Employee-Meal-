@@ -58,7 +58,12 @@ public class ReportService {
 
         long totalEmployees = allEmployees.stream().filter(e -> e.getStatus() == EmployeeStatus.ACTIVE).count();
 
-        List<MealRecord> mealRecords = mealRecordRepository.findRecordsForReport(reportDate, reportDate, department, null);
+        List<MealRecord> mealRecords;
+        if (department != null && !department.isBlank()) {
+            mealRecords = mealRecordRepository.findByMealDateAndEmployeeDepartmentOrderByEmployeeEmployeeCodeAsc(reportDate, department.trim());
+        } else {
+            mealRecords = mealRecordRepository.findByMealDateOrderByEmployeeEmployeeCodeAsc(reportDate);
+        }
 
         List<MealRecordDTO> dtos = new ArrayList<>();
         long ateCount = 0;

@@ -25,17 +25,17 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     List<String> findAllDepartments();
 
     @Query("SELECT e FROM Employee e WHERE " +
-           "(:query IS NULL OR " +
+           "(cast(:query as String) IS NULL OR " +
            "LOWER(e.employeeCode) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
            "LOWER(e.phone) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
-           "(:department IS NULL OR e.department = :department) AND " +
-           "(:status IS NULL OR e.status = :status)")
+           "(cast(:department as String) IS NULL OR e.department = :department) AND " +
+           "(cast(:status as String) IS NULL OR e.status = :status)")
     Page<Employee> searchEmployees(@Param("query") String query,
-                                   @Param("department") String department,
-                                   @Param("status") EmployeeStatus status,
-                                   Pageable pageable);
+                                    @Param("department") String department,
+                                    @Param("status") EmployeeStatus status,
+                                    Pageable pageable);
 
     @Query("SELECT e FROM Employee e WHERE e.status = 'ACTIVE' AND (" +
            "LOWER(e.employeeCode) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
