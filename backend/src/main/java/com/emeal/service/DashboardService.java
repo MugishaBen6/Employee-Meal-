@@ -83,23 +83,38 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public List<ExpenseChartData> getExpendituresBetween(LocalDate startDate, LocalDate endDate) {
-        List<ExpenseChartData> list = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM");
+        Map<LocalDate, ExpenseChartData> dateMap = new LinkedHashMap<>();
 
         for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            BigDecimal sum = mealRecordRepository.sumAmountByMealDate(date);
-            long ate = mealRecordRepository.countByMealDateAndMealStatus(date, MealStatus.ATE);
-            long didNotEat = mealRecordRepository.countByMealDateAndMealStatus(date, MealStatus.DID_NOT_EAT);
-
-            list.add(ExpenseChartData.builder()
+            dateMap.put(date, ExpenseChartData.builder()
                     .date(date)
                     .formattedDate(date.format(formatter))
-                    .amount(sum)
-                    .ateCount(ate)
-                    .didNotEatCount(didNotEat)
+                    .amount(BigDecimal.ZERO)
+                    .ateCount(0)
+                    .didNotEatCount(0)
                     .build());
         }
-        return list;
+
+        List<Object[]> aggregates = mealRecordRepository.getDailyAggregatesBetween(startDate, endDate);
+        for (Object[] row : aggregates) {
+            LocalDate date = (LocalDate) row[0];
+            MealStatus status = (MealStatus) row[1];
+            BigDecimal sum = row[2] != null ? (BigDecimal) row[2] : BigDecimal.ZERO;
+            long count = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+
+            ExpenseChartData data = dateMap.get(date);
+            if (data != null) {
+                if (status == MealStatus.ATE) {
+                    data.setAmount(data.getAmount().add(sum));
+                    data.setAteCount(data.getAteCount() + count);
+                } else if (status == MealStatus.DID_NOT_EAT) {
+                    data.setDidNotEatCount(data.getDidNotEatCount() + count);
+                }
+            }
+        }
+
+        return new ArrayList<>(dateMap.values());
     }
 
     @Transactional(readOnly = true)

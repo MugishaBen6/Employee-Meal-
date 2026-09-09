@@ -9,17 +9,21 @@ export const Expenses: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     fetchExpenses();
   }, []);
 
   const fetchExpenses = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await expenseApi.getSummary();
       setData(res);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setError(e?.response?.data?.message || 'Failed to load expense summary');
     } finally {
       setLoading(false);
     }
@@ -27,7 +31,7 @@ export const Expenses: React.FC = () => {
 
   const formatCurrency = (val: number) => `${(val || 0).toLocaleString()} RWF`;
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-28 rounded-2xl" />
@@ -37,6 +41,26 @@ export const Expenses: React.FC = () => {
           <Skeleton className="h-28 rounded-xl" />
           <Skeleton className="h-28 rounded-xl" />
         </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Expense Management</h2>
+          <p className="text-sm text-slate-500 mt-1">Financial audit of employee meal costs and company expenditures</p>
+        </div>
+        <Card className="p-8 text-center">
+          <p className="text-rose-600 font-medium">{error || 'Failed to load expense data.'}</p>
+          <button
+            onClick={fetchExpenses}
+            className="mt-4 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium transition"
+          >
+            Retry Loading Expenses
+          </button>
+        </Card>
       </div>
     );
   }

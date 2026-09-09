@@ -36,7 +36,7 @@ public class ExpenseService {
         BigDecimal todayExpense = mealRecordRepository.sumAmountByMealDate(today);
         BigDecimal weeklyExpense = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, today);
         BigDecimal monthlyExpense = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, today);
-        BigDecimal totalExpense = mealRecordRepository.sumAmountByMealDateBetween(LocalDate.of(2000, 1, 1), today);
+        BigDecimal totalExpense = mealRecordRepository.sumTotalAmount();
 
         List<ExpenseChartData> last30Days = dashboardService.getExpendituresBetween(today.minusDays(29), today);
 

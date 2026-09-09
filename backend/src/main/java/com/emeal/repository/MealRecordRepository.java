@@ -37,8 +37,17 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
     @Query("SELECT COALESCE(SUM(m.amount), 0) FROM MealRecord m WHERE m.mealDate BETWEEN :startDate AND :endDate AND m.mealStatus = 'ATE'")
     BigDecimal sumAmountByMealDateBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT COALESCE(SUM(m.amount), 0) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE")
+    BigDecimal sumTotalAmount();
+
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealDate BETWEEN :startDate AND :endDate AND m.mealStatus = :status")
     long countByMealDateBetweenAndMealStatus(@Param("startDate") LocalDate startDate,
                                              @Param("endDate") LocalDate endDate,
                                              @Param("status") MealStatus status);
+
+    @Query("SELECT m.mealDate, m.mealStatus, SUM(m.amount), COUNT(m) " +
+           "FROM MealRecord m " +
+           "WHERE m.mealDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY m.mealDate, m.mealStatus")
+    List<Object[]> getDailyAggregatesBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }
