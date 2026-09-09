@@ -92,57 +92,59 @@ export const Reports: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-5 sm:space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Reports Engine</h2>
-          <p className="text-sm text-slate-500 mt-1">Generate and export official Daily, Weekly, and Monthly meal expense reports</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reports Engine</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Generate and export official Daily, Weekly, and Monthly meal expense reports</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Button
             onClick={handleDownloadExcel}
             isLoading={exportingExcel}
-            className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 gap-2 shadow-emerald-600/20"
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 gap-1.5 sm:gap-2 shadow-emerald-600/20 text-xs sm:text-sm min-h-[38px]"
           >
-            <FileSpreadsheet className="w-4 h-4" />
+            <FileSpreadsheet className="w-4 h-4 shrink-0" />
             <span>Download Excel</span>
           </Button>
 
           <Button
             onClick={handleDownloadPdf}
             isLoading={exportingPdf}
-            className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 gap-2 shadow-rose-600/20"
+            size="sm"
+            className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 gap-1.5 sm:gap-2 shadow-rose-600/20 text-xs sm:text-sm min-h-[38px]"
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-4 h-4 shrink-0" />
             <span>Download PDF</span>
           </Button>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-indigo-600" />
-              <label className="text-xs font-semibold text-slate-700 uppercase">Select Date:</label>
+      <Card className="p-3.5 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+              <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+              <label className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">Date:</label>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-semibold focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-indigo-600" />
-              <label className="text-xs font-semibold text-slate-700 uppercase">Department:</label>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+              <Filter className="w-4 h-4 text-indigo-600 shrink-0" />
+              <label className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">Dept:</label>
               <select
                 value={selectedDept}
                 onChange={(e) => setSelectedDept(e.target.value)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="bg-transparent text-xs sm:text-sm font-medium text-slate-800 focus:outline-none w-full"
               >
                 <option value="">All Departments</option>
                 {departments.map((d) => (
@@ -152,7 +154,7 @@ export const Reports: React.FC = () => {
             </div>
           </div>
 
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-[11px] text-slate-400 font-mono truncate">
             {summary?.companyName} • {summary?.formattedReportDate}
           </span>
         </div>
@@ -160,42 +162,42 @@ export const Reports: React.FC = () => {
 
       {/* Summary Cards */}
       {loading || !summary ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          <Skeleton className="h-24 sm:h-28 rounded-xl" />
+          <Skeleton className="h-24 sm:h-28 rounded-xl" />
+          <Skeleton className="h-24 sm:h-28 rounded-xl" />
+          <Skeleton className="h-24 sm:h-28 rounded-xl" />
+          <Skeleton className="h-24 sm:h-28 rounded-xl col-span-2 sm:col-span-2 lg:col-span-1" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card className="p-4 border-l-4 border-l-sky-500">
-            <p className="text-xs font-medium text-slate-500 uppercase">Total Employees</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{summary.totalEmployees}</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Total Employees</p>
+            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summary.totalEmployees}</h3>
           </Card>
-          <Card className="p-4 border-l-4 border-l-emerald-500">
-            <p className="text-xs font-medium text-slate-500 uppercase">Ate</p>
-            <h3 className="text-2xl font-bold text-emerald-600 mt-1">{summary.ateCount}</h3>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Ate</p>
+            <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">{summary.ateCount}</h3>
           </Card>
-          <Card className="p-4 border-l-4 border-l-rose-500">
-            <p className="text-xs font-medium text-slate-500 uppercase">Did Not Eat</p>
-            <h3 className="text-2xl font-bold text-rose-600 mt-1">{summary.didNotEatCount}</h3>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Did Not Eat</p>
+            <h3 className="text-lg sm:text-2xl font-bold text-rose-600 mt-0.5 sm:mt-1">{summary.didNotEatCount}</h3>
           </Card>
-          <Card className="p-4 border-l-4 border-l-indigo-500">
-            <p className="text-xs font-medium text-slate-500 uppercase">Total Expenditure</p>
-            <h3 className="text-xl font-bold text-indigo-700 mt-1">{summary.totalExpenditure.toLocaleString()} {summary.currency}</h3>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-500 col-span-2 sm:col-span-1">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Total Expenditure</p>
+            <h3 className="text-base sm:text-xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">{summary.totalExpenditure.toLocaleString()} {summary.currency}</h3>
           </Card>
-          <Card className="p-4 border-l-4 border-l-amber-500">
-            <p className="text-xs font-medium text-slate-500 uppercase">Average Meal Cost</p>
-            <h3 className="text-xl font-bold text-amber-700 mt-1">{summary.averageMealCost.toLocaleString()} {summary.currency}</h3>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 col-span-2 sm:col-span-1">
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Average Meal Cost</p>
+            <h3 className="text-base sm:text-xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">{summary.averageMealCost.toLocaleString()} {summary.currency}</h3>
           </Card>
         </div>
       )}
 
       {/* Transactions Table */}
       <Card title={`Detailed Meal Transactions (${selectedDate})`} className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto touch-scroll">
+          <table className="w-full text-left text-sm min-w-[640px]">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">Code</th>
@@ -225,7 +227,7 @@ export const Reports: React.FC = () => {
                   <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{r.employeeCode}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900">{r.employeeName}</td>
-                    <td className="py-3.5 px-4 text-slate-600">{r.department}</td>
+                    <td className="py-3.5 px-4 text-slate-600 text-xs">{r.department}</td>
                     <td className="py-3.5 px-4">
                       <Badge variant={r.mealStatus === 'ATE' ? 'success' : 'danger'}>
                         {r.mealStatus}

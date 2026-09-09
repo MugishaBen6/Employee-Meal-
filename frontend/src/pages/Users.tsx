@@ -241,24 +241,24 @@ const Users: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <UsersIcon className="w-7 h-7 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <UsersIcon className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
             User Management
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Manage system access, approve pending registrations, assign roles and security
           </p>
         </div>
-        <Button variant="primary" onClick={() => setIsCreateModalOpen(true)}>
+        <Button variant="primary" className="w-full sm:w-auto" onClick={() => setIsCreateModalOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
           Create New User
         </Button>
       </div>
 
       {/* Status Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+      <div className="overflow-x-auto touch-scroll flex gap-2 border-b border-slate-200 pb-2.5">
         {[
           { label: 'All Users', value: '' },
           { label: 'Active', value: 'ACTIVE' },
@@ -271,9 +271,9 @@ const Users: React.FC = () => {
               setStatusFilter(tab.value as any);
               setPage(0);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors min-h-[34px] ${
               statusFilter === tab.value
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -283,8 +283,8 @@ const Users: React.FC = () => {
       </div>
 
       {/* Filters Card */}
-      <Card>
-        <div className="flex flex-col sm:flex-row gap-3">
+      <Card className="p-3.5 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
           <div className="relative flex-1">
             <input
               type="text"
@@ -294,7 +294,7 @@ const Users: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setPage(0);
               }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 pl-9"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 pl-9"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
@@ -306,7 +306,7 @@ const Users: React.FC = () => {
                 setRoleFilter(e.target.value as any);
                 setPage(0);
               }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[38px]"
             >
               <option value="">All Roles</option>
               <option value="ADMIN">Admin</option>
@@ -319,7 +319,7 @@ const Users: React.FC = () => {
       </Card>
 
       {/* Users Table */}
-      <Card>
+      <Card className="p-0 overflow-hidden">
         {isLoading ? (
           <div className="space-y-3 p-4">
             <Skeleton className="h-10 w-full" />
@@ -337,8 +337,8 @@ const Users: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-700">
+          <div className="overflow-x-auto touch-scroll">
+            <table className="w-full text-left text-sm text-slate-700 min-w-[620px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-4 py-3">User</th>
@@ -358,17 +358,17 @@ const Users: React.FC = () => {
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">
                       @{u.username}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                    <td className="px-4 py-3 text-slate-600 text-xs">{u.email}</td>
                     <td className="px-4 py-3">{getRoleBadge(u.role)}</td>
                     <td className="px-4 py-3">{getStatusBadge(u.status)}</td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1">
                         {u.status === 'PENDING_APPROVAL' ? (
                           <>
                             <button
                               onClick={() => openApproveModal(u)}
                               title="Approve User & Assign Role"
-                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg border border-emerald-200 flex items-center gap-1"
+                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 rounded-lg border border-emerald-200 flex items-center gap-1 min-h-[34px]"
                             >
                               <CheckCircle className="w-3.5 h-3.5" />
                               Approve
@@ -376,7 +376,8 @@ const Users: React.FC = () => {
                             <button
                               onClick={() => handleRejectUser(u)}
                               title="Reject Registration"
-                              className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg"
+                              aria-label="Reject Registration"
+                              className="p-2 text-rose-500 hover:bg-rose-50 active:bg-rose-100 rounded-lg min-w-[34px] min-h-[34px] flex items-center justify-center"
                             >
                               <XCircle className="w-4 h-4" />
                             </button>
@@ -386,7 +387,8 @@ const Users: React.FC = () => {
                             <button
                               onClick={() => openEditModal(u)}
                               title="Edit User"
-                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              aria-label="Edit User"
+                              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -397,17 +399,19 @@ const Users: React.FC = () => {
                                 setIsPasswordModalOpen(true);
                               }}
                               title="Reset Password"
-                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              aria-label="Reset Password"
+                              className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 active:bg-amber-100 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
                             >
                               <KeyRound className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleToggleStatus(u)}
                               title={u.status === 'ACTIVE' ? 'Deactivate User' : 'Activate User'}
-                              className={`p-1.5 rounded-lg transition-colors ${
+                              aria-label="Toggle Status"
+                              className={`p-2 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center ${
                                 u.status === 'ACTIVE'
-                                  ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
-                                  : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                                  ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100'
+                                  : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100'
                               }`}
                             >
                               {u.status === 'ACTIVE' ? (
@@ -429,11 +433,11 @@ const Users: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-xs text-slate-500">
             <span>
               Showing {users.length} of {totalElements} users
             </span>
-            <div className="flex gap-1">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
               <Button
                 variant="outline"
                 size="sm"
@@ -442,8 +446,8 @@ const Users: React.FC = () => {
               >
                 Previous
               </Button>
-              <span className="px-3 py-1 font-semibold text-slate-700">
-                Page {page + 1} of {totalPages}
+              <span className="px-2 py-1 font-semibold text-slate-700 text-xs">
+                {page + 1} / {totalPages}
               </span>
               <Button
                 variant="outline"
@@ -465,7 +469,7 @@ const Users: React.FC = () => {
         title="Create New User Account"
       >
         <form onSubmit={handleSubmitCreate(handleCreateUser)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 First Name <span className="text-rose-500">*</span>
@@ -562,15 +566,16 @@ const Users: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-slate-100">
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => setIsCreateModalOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmittingCreate}>
+            <Button type="submit" variant="primary" className="w-full sm:w-auto" isLoading={isSubmittingCreate}>
               Create User
             </Button>
           </div>
@@ -584,7 +589,7 @@ const Users: React.FC = () => {
         title={`Edit User: @${selectedUser?.username}`}
       >
         <form onSubmit={handleSubmitEdit(handleEditUser)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">First Name</label>
               <input
@@ -638,11 +643,11 @@ const Users: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmittingEdit}>
+            <Button type="submit" variant="primary" className="w-full sm:w-auto" isLoading={isSubmittingEdit}>
               Save Changes
             </Button>
           </div>
@@ -678,13 +683,13 @@ const Users: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsApproveModalOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsApproveModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" variant="primary" onClick={handleApproveUser}>
+            <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={handleApproveUser}>
               <ShieldCheck className="w-4 h-4 mr-1.5" />
-              Approve & Activate Account
+              Approve & Activate
             </Button>
           </div>
         </div>
@@ -712,11 +717,11 @@ const Users: React.FC = () => {
               placeholder="Minimum 6 characters"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setIsPasswordModalOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsPasswordModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" variant="primary" onClick={handleChangePassword}>
+            <Button type="button" variant="primary" className="w-full sm:w-auto" onClick={handleChangePassword}>
               Update Password
             </Button>
           </div>

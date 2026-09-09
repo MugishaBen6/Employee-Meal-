@@ -79,21 +79,21 @@ const SetupAdmin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto h-16 w-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <ShieldCheck className="h-9 w-9 text-white" />
+        <div className="mx-auto h-14 w-14 sm:h-16 sm:w-16 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <ShieldCheck className="h-8 w-8 sm:h-9 sm:w-9 text-white" />
         </div>
-        <h2 className="mt-6 text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
           Initial Master Admin Setup
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-400">
           Configure the primary administrator account for your company
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-slate-800 py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-700">
+      <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-slate-800 py-6 px-4.5 sm:py-8 sm:px-10 shadow-2xl rounded-2xl border border-slate-700">
           {isSuccess ? (
             <div className="text-center py-4">
               <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-500/10 text-emerald-400 mb-4 border border-emerald-500/20">
@@ -124,7 +124,7 @@ const SetupAdmin: React.FC = () => {
                 This is a one-time initial setup to configure your system's master Administrator. Once created, additional users can be registered and approved.
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
                     First Name <span className="text-rose-400">*</span>
@@ -132,7 +132,7 @@ const SetupAdmin: React.FC = () => {
                   <input
                     type="text"
                     {...register('firstName', { required: 'First name is required' })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="System"
                   />
                   {errors.firstName && (
@@ -147,7 +147,7 @@ const SetupAdmin: React.FC = () => {
                   <input
                     type="text"
                     {...register('lastName', { required: 'Last name is required' })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="Admin"
                   />
                   {errors.lastName && (

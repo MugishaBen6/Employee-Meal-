@@ -70,31 +70,31 @@ export const SettingsPage: React.FC = () => {
         <p className="text-sm text-slate-500 mt-1">Configure global application parameters and meal prices</p>
       </div>
 
-      <Card>
+      <Card className="p-4 sm:p-6 shadow-sm">
         {loading ? (
           <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {settings.map((s) => (
-              <div key={s.id} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-800 font-mono">{s.settingKey}</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.description || 'System configuration parameter'}</p>
+              <div key={s.id} className="py-4.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-slate-800 font-mono break-all">{s.settingKey}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{s.description || 'System configuration parameter'}</p>
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="flex items-center gap-2.5 w-full sm:w-auto shrink-0">
                   <input
                     type="text"
                     value={formValues[s.settingKey] || ''}
                     onChange={(e) => setFormValues({ ...formValues, [s.settingKey]: e.target.value })}
-                    className="flex-1 sm:w-64 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white"
+                    className="flex-1 sm:w-60 px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-sm"
                   />
                   <Button
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 shrink-0 px-4 py-2"
                     isLoading={updatingKey === s.settingKey}
                     onClick={() => handleUpdate(s.settingKey)}
                   >

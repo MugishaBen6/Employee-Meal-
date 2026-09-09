@@ -30,21 +30,21 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <UtensilsCrossed className="h-9 w-9 text-white" />
+        <div className="mx-auto h-14 w-14 sm:h-16 sm:w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <UtensilsCrossed className="h-8 w-8 sm:h-9 sm:w-9 text-white" />
         </div>
-        <h2 className="mt-6 text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
           Recover Password
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-400">
           Enter your registered email address to receive a secure recovery link
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-slate-800 py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-700">
+      <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-slate-800 py-6 px-4.5 sm:py-8 sm:px-10 shadow-2xl rounded-2xl border border-slate-700">
           {isSubmitted ? (
             <div className="text-center py-4">
               <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-blue-500/10 text-blue-400 mb-4 border border-blue-500/20">

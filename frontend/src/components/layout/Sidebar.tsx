@@ -80,20 +80,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs lg:hidden transition-opacity duration-300"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-50 h-screen w-72 sm:w-64 max-w-[85vw] bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-950/50">
+        <div className="h-16 flex items-center justify-between px-5 sm:px-6 border-b border-slate-800 bg-slate-950/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
               <Utensils className="w-5 h-5" />
             </div>
             <div>
@@ -103,14 +104,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg"
+            aria-label="Close navigation sidebar"
+            className="lg:hidden text-slate-400 hover:text-white active:bg-slate-800 p-2 rounded-xl transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 py-4 sm:py-6 px-3 sm:px-4 space-y-1 overflow-y-auto touch-scroll">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             return (

@@ -3,11 +3,25 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background-color: #f8fafc;
     color: #0f172a;
+    overflow-x: hidden;
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
+
+  input, select, textarea, button {
+    font-family: inherit;
+  }
+}
+
+/* Smooth mobile touch scrolling for tables and horizontal lists */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 /* Custom scrollbars */

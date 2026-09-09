@@ -14,9 +14,11 @@ interface ToastProps {
 
 export const ToastContainer: React.FC<ToastProps> = ({ toasts, onClose }) => {
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full">
+    <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-5 sm:bottom-5 z-50 flex flex-col gap-2 max-w-sm sm:w-full pointer-events-none">
       {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onClose={() => onClose(toast.id)} />
+        <div key={toast.id} className="pointer-events-auto">
+          <ToastItem toast={toast} onClose={() => onClose(toast.id)} />
+        </div>
       ))}
     </div>
   );
@@ -28,7 +30,7 @@ export const Toast: React.FC<{ message: string; type: 'success' | 'error' | 'inf
   onClose,
 }) => {
   return (
-    <div className="fixed bottom-5 right-5 z-50 max-w-sm w-full">
+    <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-5 sm:bottom-5 z-50 max-w-sm sm:w-full">
       <ToastItem toast={{ id: '1', type, message }} onClose={onClose} />
     </div>
   );

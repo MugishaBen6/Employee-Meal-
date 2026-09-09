@@ -66,9 +66,9 @@ export const AuditLogs: React.FC = () => {
         </div>
       </Card>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+      <Card className="p-0 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto touch-scroll">
+          <table className="w-full text-left text-sm min-w-[720px]">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">User</th>
@@ -88,17 +88,17 @@ export const AuditLogs: React.FC = () => {
                 ))
               ) : logs.content.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400 text-sm">No audit logs found.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">No audit logs found matching the criteria.</td>
                 </tr>
               ) : (
                 logs.content.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">{log.username}</td>
-                    <td className="py-3.5 px-4"><Badge variant="info">{log.userRole}</Badge></td>
-                    <td className="py-3.5 px-4 font-mono font-semibold text-indigo-700">{log.action}</td>
-                    <td className="py-3.5 px-4 text-xs font-mono text-slate-500">{log.entityType} ({log.entityId || '-'})</td>
-                    <td className="py-3.5 px-4 text-slate-700 text-xs">{log.description}</td>
-                    <td className="py-3.5 px-4 text-right text-xs font-mono text-slate-400">
+                    <td className="py-3.5 px-4 font-bold text-slate-900 font-mono text-xs">{log.username}</td>
+                    <td className="py-3.5 px-4 whitespace-nowrap"><Badge variant="info">{log.userRole}</Badge></td>
+                    <td className="py-3.5 px-4 font-mono font-semibold text-xs text-indigo-700 whitespace-nowrap">{log.action}</td>
+                    <td className="py-3.5 px-4 text-xs font-mono text-slate-500 whitespace-nowrap">{log.entityType} ({log.entityId || '-'})</td>
+                    <td className="py-3.5 px-4 text-slate-700 text-xs max-w-xs truncate" title={log.description}>{log.description}</td>
+                    <td className="py-3.5 px-4 text-right text-xs font-mono text-slate-400 whitespace-nowrap">
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
                   </tr>
@@ -107,6 +107,32 @@ export const AuditLogs: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {logs && logs.totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-slate-50/50">
+            <div>
+              Showing page <span className="font-semibold text-slate-800">{page + 1}</span> of <span className="font-semibold text-slate-800">{logs.totalPages}</span> ({logs.totalElements} total entries)
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 0 || loading}
+                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-medium transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+              <button
+                disabled={page >= logs.totalPages - 1 || loading}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 font-medium transition-colors"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

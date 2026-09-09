@@ -267,82 +267,82 @@ export const Employees: React.FC = () => {
       </div>
 
       {/* Top Summary Cards (Calculated for Selected Date) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
         {/* Total Active Employees */}
-        <Card className="p-4 border-l-4 border-l-sky-500 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Active Staff</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{summary.totalActiveEmployees}</h3>
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500 bg-white">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Staff</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summary.totalActiveEmployees}</h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
-              <Users className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>
 
         {/* Ate */}
-        <Card className="p-4 border-l-4 border-l-emerald-500 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ate Today</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1">{summary.ateCount}</h3>
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500 bg-white">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Ate Today</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">{summary.ateCount}</h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>
 
         {/* Did Not Eat */}
-        <Card className="p-4 border-l-4 border-l-rose-500 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Did Not Eat</p>
-              <h3 className="text-2xl font-bold text-rose-600 mt-1">{summary.didNotEatCount}</h3>
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500 bg-white">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Did Not Eat</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-rose-600 mt-0.5 sm:mt-1">{summary.didNotEatCount}</h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <XCircle className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>
 
         {/* Not Recorded */}
-        <Card className="p-4 border-l-4 border-l-amber-500 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Not Recorded</p>
-              <h3 className="text-2xl font-bold text-amber-600 mt-1">{summary.notRecordedCount}</h3>
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 bg-white">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Not Recorded</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-amber-600 mt-0.5 sm:mt-1">{summary.notRecordedCount}</h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>
 
         {/* Total Meal Cost */}
-        <Card className="p-4 border-l-4 border-l-indigo-600 bg-white sm:col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Meal Cost</p>
-              <h3 className="text-lg font-bold text-indigo-700 mt-1 truncate">
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-600 bg-white col-span-2 sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
+              <h3 className="text-base sm:text-lg font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
                 {summary.totalMealCost.toLocaleString()} {summary.currency}
               </h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Coins className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-4">
-        <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+      <Card className="p-3.5 sm:p-4">
+        <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center justify-between">
           {/* Date Selector */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 shrink-0">
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 shrink-0">
             <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
-            <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Meal Date:</label>
+            <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Date:</label>
             <input
               type="date"
               value={selectedDate}
@@ -350,7 +350,7 @@ export const Employees: React.FC = () => {
                 setSelectedDate(e.target.value);
                 setPage(0);
               }}
-              className="bg-transparent text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
             />
           </div>
 
@@ -422,9 +422,9 @@ export const Employees: React.FC = () => {
       </Card>
 
       {/* Main Employee Attendance Table */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-700">
+      <Card className="p-0 overflow-hidden">
+        <div className="overflow-x-auto touch-scroll">
+          <table className="w-full text-left text-sm text-slate-700 min-w-[640px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3.5">Employee ID</th>
@@ -506,12 +506,13 @@ export const Employees: React.FC = () => {
 
                     {/* Actions */}
                     <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1">
                         {/* View Meal History */}
                         <button
                           onClick={() => openHistoryModal(emp)}
                           title="View Historical Meal Records"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          aria-label="View Meal History"
+                          className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
                         >
                           <History className="w-4 h-4" />
                         </button>
@@ -522,7 +523,8 @@ export const Employees: React.FC = () => {
                             <button
                               onClick={() => openEditModal(emp)}
                               title="Edit Employee Details"
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              aria-label="Edit Employee"
+                              className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
@@ -532,7 +534,8 @@ export const Employees: React.FC = () => {
                               <button
                                 onClick={() => openDeactivateModal(emp)}
                                 title="Deactivate Employee"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                aria-label="Deactivate Employee"
+                                className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
                               >
                                 <UserX className="w-4 h-4" />
                               </button>
@@ -550,11 +553,11 @@ export const Employees: React.FC = () => {
 
         {/* Pagination Footer */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
             <span>
               Page {page + 1} of {totalPages} ({totalElements} total employees)
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
               <Button
                 variant="outline"
                 size="sm"
@@ -676,11 +679,11 @@ export const Employees: React.FC = () => {
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-            <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-200">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button type="submit" className="w-full sm:w-auto" isLoading={submitting}>
               Save Employee
             </Button>
           </div>
@@ -734,11 +737,11 @@ export const Employees: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-            <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-200">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button type="submit" className="w-full sm:w-auto" isLoading={submitting}>
               Update Employee
             </Button>
           </div>
@@ -754,9 +757,9 @@ export const Employees: React.FC = () => {
           <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
             Deactivated employees will no longer be eligible for new daily meal recordings. Historical records are preserved.
           </p>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => setIsDeactivateModalOpen(false)}>Cancel</Button>
-            <Button variant="danger" isLoading={submitting} onClick={handleDeactivate}>Deactivate</Button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDeactivateModalOpen(false)}>Cancel</Button>
+            <Button variant="danger" className="w-full sm:w-auto" isLoading={submitting} onClick={handleDeactivate}>Deactivate</Button>
           </div>
         </div>
       </Modal>
@@ -773,14 +776,14 @@ export const Employees: React.FC = () => {
           ) : mealHistory.length === 0 ? (
             <p className="text-center py-6 text-sm text-slate-400">No historical meal records found for this employee.</p>
           ) : (
-            <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto pr-1">
+            <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto touch-scroll pr-1">
               {mealHistory.map((m) => (
-                <div key={m.id} className="py-2.5 flex items-center justify-between text-sm hover:bg-slate-50 px-2 rounded-lg">
+                <div key={m.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 text-sm hover:bg-slate-50 px-2 rounded-lg">
                   <div>
                     <span className="font-semibold text-slate-800">{m.mealDate}</span>
                     <span className="text-xs text-slate-400 ml-2">Recorded by {m.recordedBy}</span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
                     <Badge variant={m.mealStatus === 'ATE' ? 'success' : 'danger'}>{m.mealStatus}</Badge>
                     <span className="font-mono font-bold text-slate-900">{m.amount} {summary.currency}</span>
                   </div>
