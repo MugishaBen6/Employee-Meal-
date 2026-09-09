@@ -29,6 +29,8 @@ public class RegisterRequest {
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
 
+    private com.emeal.entity.Role role;
+
     public RegisterRequest() {
     }
 
@@ -49,4 +51,7 @@ public class RegisterRequest {
 
     public String getConfirmPassword() { return confirmPassword; }
     public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
+
+    public com.emeal.entity.Role getRole() { return role; }
+    public void setRole(com.emeal.entity.Role role) { this.role = role; }
 }

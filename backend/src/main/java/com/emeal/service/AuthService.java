@@ -67,16 +67,15 @@ public class AuthService {
 
     @Transactional
     public UserDTO setupInitialAdmin(SetupAdminRequest request) {
-        if (!isInitialAdminSetupNeeded()) {
-            throw new BadRequestException("Administrator account already exists. Setup is locked.");
-        }
-
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByUsername(request.getUsername().trim())) {
             throw new DuplicateResourceException("Username '" + request.getUsername() + "' is already taken");
         }
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
             throw new DuplicateResourceException("Email '" + request.getEmail() + "' is already registered");
         }
+
+        boolean isFirstAdmin = isInitialAdminSetupNeeded();
+        UserStatus status = isFirstAdmin ? UserStatus.ACTIVE : UserStatus.PENDING_APPROVAL;
 
         User admin = User.builder()
                 .username(request.getUsername().trim())
@@ -85,13 +84,13 @@ public class AuthService {
                 .firstName(request.getFirstName().trim())
                 .lastName(request.getLastName().trim())
                 .role(Role.ADMIN)
-                .status(UserStatus.ACTIVE)
+                .status(status)
                 .build();
 
         User saved = userRepository.save(admin);
 
-        auditLogService.logAction("INITIAL_ADMIN_SETUP", "USER", saved.getId().toString(),
-                "Initial master administrator account configured: " + saved.getUsername());
+        auditLogService.logAction("ADMIN_SETUP", "USER", saved.getId().toString(),
+                "Administrator account created: " + saved.getUsername() + " (status: " + status + ")");
 
         return UserDTO.fromEntity(saved);
     }
@@ -109,21 +108,24 @@ public class AuthService {
             throw new DuplicateResourceException("Email '" + request.getEmail() + "' is already registered");
         }
 
-        // Public registrations are created with PENDING_APPROVAL status to prevent unauthorized access
+        Role targetRole = request.getRole() != null ? request.getRole() : Role.HR;
+        boolean isFirstAdmin = (targetRole == Role.ADMIN && isInitialAdminSetupNeeded());
+        UserStatus status = isFirstAdmin ? UserStatus.ACTIVE : UserStatus.PENDING_APPROVAL;
+
         User user = User.builder()
                 .username(request.getUsername().trim())
                 .email(request.getEmail().trim().toLowerCase())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .firstName(request.getFirstName().trim())
                 .lastName(request.getLastName().trim())
-                .role(Role.HR) // Default base role pending admin review
-                .status(UserStatus.PENDING_APPROVAL)
+                .role(targetRole)
+                .status(status)
                 .build();
 
         User saved = userRepository.save(user);
 
         auditLogService.logAction("USER_REGISTRATION", "USER", saved.getId().toString(),
-                "New user registered: " + saved.getUsername() + " (" + saved.getEmail() + "), pending Admin approval");
+                "New " + targetRole + " account registered: " + saved.getUsername() + " (" + saved.getEmail() + "), status: " + status);
 
         return UserDTO.fromEntity(saved);
     }
@@ -163,13 +165,13 @@ public class AuthService {
     }
 
     @Transactional
-    public void forgotPassword(ForgotPasswordRequest request) {
-        String email = request.getEmail().trim().toLowerCase();
-        User user = userRepository.findByEmail(email).orElse(null);
+    public java.util.Map<String, String> forgotPassword(ForgotPasswordRequest request) {
+        String identifier = request.getEmail().trim();
+        User user = userRepository.findByEmail(identifier.toLowerCase())
+                .orElseGet(() -> userRepository.findByUsername(identifier).orElse(null));
 
         if (user == null) {
-            // Return gracefully without exposing email existence to prevent user enumeration attacks
-            return;
+            throw new BadRequestException("No account found matching '" + identifier + "'");
         }
 
         String rawToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
@@ -181,7 +183,7 @@ public class AuthService {
         PasswordResetToken resetToken = PasswordResetToken.builder()
                 .user(user)
                 .tokenHash(tokenHash)
-                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .expiresAt(LocalDateTime.now().plusMinutes(30))
                 .build();
 
         passwordResetTokenRepository.save(resetToken);
@@ -189,7 +191,13 @@ public class AuthService {
         emailService.sendPasswordResetEmail(user.getEmail(), rawToken, user.getUsername());
 
         auditLogService.logAction("FORGOT_PASSWORD_REQUEST", "USER", user.getId().toString(),
-                "Password reset token requested for email: " + user.getEmail());
+                "Password reset token requested for user: " + user.getUsername() + " (" + user.getEmail() + ")");
+
+        return java.util.Map.of(
+                "resetToken", rawToken,
+                "email", user.getEmail(),
+                "username", user.getUsername()
+        );
     }
 
     @Transactional

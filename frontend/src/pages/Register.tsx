@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { UtensilsCrossed, UserPlus, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { UtensilsCrossed, UserPlus, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, User } from 'lucide-react';
 import { authApi } from '../api/authApi';
-import { RegisterRequest } from '../types';
+import { RegisterRequest, Role } from '../types';
 import Button from '../components/common/Button';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialRoleParam = searchParams.get('role')?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'HR';
+  
+  const [selectedRole, setSelectedRole] = useState<Role>(initialRoleParam as Role);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [registeredUsername, setRegisteredUsername] = useState('');
@@ -26,7 +30,7 @@ const Register: React.FC = () => {
   const onSubmit = async (data: RegisterRequest) => {
     setError(null);
     try {
-      await authApi.register(data);
+      await authApi.register({ ...data, role: selectedRole });
       setRegisteredUsername(data.username);
       setIsSuccess(true);
     } catch (err: any) {
@@ -38,19 +42,49 @@ const Register: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto h-14 w-14 sm:h-16 sm:w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <UtensilsCrossed className="h-8 w-8 sm:h-9 sm:w-9 text-white" />
+        <div className={`mx-auto h-14 w-14 sm:h-16 sm:w-16 ${selectedRole === 'ADMIN' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'} rounded-2xl flex items-center justify-center shadow-lg transition-colors`}>
+          {selectedRole === 'ADMIN' ? <ShieldCheck className="h-8 w-8 sm:h-9 sm:w-9 text-white" /> : <UtensilsCrossed className="h-8 w-8 sm:h-9 sm:w-9 text-white" />}
         </div>
         <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Create an Account
+          {selectedRole === 'ADMIN' ? 'Create Admin Account' : 'Create User Account'}
         </h2>
         <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-400">
-          Employee Meal Management System
+          {selectedRole === 'ADMIN' ? 'Register administrator credentials for system management' : 'Register employee account for meal recording & tracking'}
         </p>
       </div>
 
       <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-slate-800 py-6 px-4.5 sm:py-8 sm:px-10 shadow-2xl rounded-2xl border border-slate-700">
+          {/* Role Toggle Selector */}
+          {!isSuccess && (
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900/90 rounded-xl mb-5 border border-slate-700">
+              <button
+                type="button"
+                onClick={() => setSelectedRole('HR')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                  selectedRole !== 'ADMIN'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>User / Staff</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedRole('ADMIN')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                  selectedRole === 'ADMIN'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Administrator</span>
+              </button>
+            </div>
+          )}
+
           {isSuccess ? (
             <div className="text-center py-4">
               <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-500/10 text-emerald-400 mb-4 border border-emerald-500/20">
@@ -59,12 +93,12 @@ const Register: React.FC = () => {
               <h3 className="text-xl font-bold text-white mb-2">Registration Submitted</h3>
               <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-700 text-left mb-6">
                 <p className="text-sm text-slate-300 mb-2">
-                  Account <strong className="text-blue-400">@{registeredUsername}</strong> has been created successfully.
+                  Account <strong className="text-blue-400">@{registeredUsername}</strong> ({selectedRole}) has been registered.
                 </p>
                 <div className="flex items-start gap-2 text-xs text-amber-400/90 mt-3 pt-3 border-t border-slate-700">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>
-                    Your account is currently <strong>Pending Administrator Approval</strong>. Once an administrator approves your account and assigns your role, you will be able to log in.
+                    Your account is registered. If verification is required, an administrator will approve your account.
                   </span>
                 </div>
               </div>

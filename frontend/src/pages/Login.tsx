@@ -155,17 +155,26 @@ const Login: React.FC = () => {
               Sign In
             </Button>
 
-            <div className="pt-4 border-t border-slate-700 text-center">
-              <p className="text-xs text-slate-400">
-                Don't have an account?{' '}
+            <div className="pt-4 border-t border-slate-700/80 space-y-3">
+              <p className="text-center text-xs text-slate-400 font-medium">Don't have an account?</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <Link
                   to="/register"
-                  className="font-semibold text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-900 border border-slate-700 hover:border-blue-500/60 text-xs font-semibold text-slate-200 hover:text-blue-400 transition-all group shadow-sm text-center"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Create Account
+                  <UserPlus className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
+                  <span>Create Account as User</span>
                 </Link>
-              </p>
+
+                <Link
+                  to="/setup-admin"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-900 border border-slate-700 hover:border-emerald-500/60 text-xs font-semibold text-slate-200 hover:text-emerald-400 transition-all group shadow-sm text-center"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
+                  <span>Create Account as Admin</span>
+                </Link>
+              </div>
             </div>
           </form>
         </div>

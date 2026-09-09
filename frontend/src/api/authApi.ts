@@ -31,7 +31,7 @@ export const authApi = {
   },
 
   forgotPassword: async (data: ForgotPasswordRequest) => {
-    const response = await axiosClient.post<ApiResponse<void>>('/auth/forgot-password', data);
+    const response = await axiosClient.post<ApiResponse<import('../types').ForgotPasswordResponseData>>('/auth/forgot-password', data);
     return response.data;
   },
 

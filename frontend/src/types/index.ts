@@ -224,10 +224,17 @@ export interface RegisterRequest {
   email: string;
   password: string;
   confirmPassword: string;
+  role?: Role;
 }
 
 export interface ForgotPasswordRequest {
   email: string;
+}
+
+export interface ForgotPasswordResponseData {
+  resetToken: string;
+  email: string;
+  username: string;
 }
 
 export interface ResetPasswordRequest {

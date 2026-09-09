@@ -1,12 +1,10 @@
 package com.emeal.dto.request;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class ForgotPasswordRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "Username or email is required")
     private String email;
 
     public ForgotPasswordRequest() {

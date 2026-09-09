@@ -12,7 +12,7 @@ const SetupAdmin: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
-  const [isSetupAllowed, setIsSetupAllowed] = useState(true);
+  const [isInitialSetup, setIsInitialSetup] = useState(true);
 
   const {
     register,
@@ -24,9 +24,7 @@ const SetupAdmin: React.FC = () => {
     const checkStatus = async () => {
       try {
         const res = await authApi.getSetupStatus();
-        if (!res.setupNeeded) {
-          setIsSetupAllowed(false);
-        }
+        setIsInitialSetup(res.setupNeeded);
       } catch (err) {
         console.error('Failed to check admin setup status', err);
       } finally {
@@ -50,30 +48,7 @@ const SetupAdmin: React.FC = () => {
   if (isCheckingStatus) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (!isSetupAllowed) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-          <div className="bg-slate-800 py-8 px-6 shadow-2xl rounded-2xl border border-slate-700 text-center">
-            <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-500/10 text-emerald-400 mb-4 border border-emerald-500/20">
-              <CheckCircle2 className="h-8 w-8" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">System Already Configured</h3>
-            <p className="text-sm text-slate-300 mb-6">
-              An administrator account already exists in PostgreSQL. Initial setup is permanently locked for security.
-            </p>
-            <Link to="/login">
-              <Button variant="primary" className="w-full">
-                Proceed to Login
-              </Button>
-            </Link>
-          </div>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
       </div>
     );
   }
@@ -85,10 +60,12 @@ const SetupAdmin: React.FC = () => {
           <ShieldCheck className="h-8 w-8 sm:h-9 sm:w-9 text-white" />
         </div>
         <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Initial Master Admin Setup
+          {isInitialSetup ? 'Initial Master Admin Setup' : 'Create Admin Account'}
         </h2>
         <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-400">
-          Configure the primary administrator account for your company
+          {isInitialSetup
+            ? 'Configure the primary administrator account for your company'
+            : 'Register an administrator account for meal management and oversight'}
         </p>
       </div>
 
@@ -99,16 +76,20 @@ const SetupAdmin: React.FC = () => {
               <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-500/10 text-emerald-400 mb-4 border border-emerald-500/20">
                 <CheckCircle2 className="h-8 w-8" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Master Admin Configured</h3>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {isInitialSetup ? 'Master Admin Configured' : 'Admin Account Created'}
+              </h3>
               <p className="text-sm text-slate-300 mb-6">
-                Your administrator account has been successfully initialized in PostgreSQL. You can now log in and manage users, employees, and settings.
+                {isInitialSetup
+                  ? 'Your administrator account has been initialized in PostgreSQL. You can now log in immediately.'
+                  : 'Your administrator account has been created. You can now proceed to login.'}
               </p>
               <Button
                 variant="primary"
-                className="w-full"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => navigate('/login')}
               >
-                Log In to Admin Dashboard
+                Proceed to Login
               </Button>
             </div>
           ) : (
