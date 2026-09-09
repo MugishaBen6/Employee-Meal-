@@ -11,7 +11,6 @@ const SetupAdmin: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [isInitialSetup, setIsInitialSetup] = useState(true);
 
   const {
@@ -26,9 +25,8 @@ const SetupAdmin: React.FC = () => {
         const res = await authApi.getSetupStatus();
         setIsInitialSetup(res.setupNeeded);
       } catch (err) {
-        console.error('Failed to check admin setup status', err);
-      } finally {
-        setIsCheckingStatus(false);
+        // Backend not ready or error, fallback safely without blocking UI
+        setIsInitialSetup(false);
       }
     };
     checkStatus();
@@ -44,14 +42,6 @@ const SetupAdmin: React.FC = () => {
       setError(msg);
     }
   };
-
-  if (isCheckingStatus) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">

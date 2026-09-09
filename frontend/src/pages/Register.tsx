@@ -18,6 +18,15 @@ const Register: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  React.useEffect(() => {
+    const roleParam = searchParams.get('role')?.toUpperCase();
+    if (roleParam === 'ADMIN') {
+      setSelectedRole('ADMIN');
+    } else {
+      setSelectedRole('HR');
+    }
+  }, [searchParams]);
+
   const {
     register,
     handleSubmit,
