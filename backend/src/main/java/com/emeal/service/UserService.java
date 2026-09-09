@@ -38,7 +38,27 @@ public class UserService {
     @Transactional(readOnly = true)
     public PageResponse<UserDTO> searchUsers(String query, Role role, UserStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<User> result = userRepository.searchUsers(query, role, status, pageable);
+
+        org.springframework.data.jpa.domain.Specification<User> spec = (root, q, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (query != null && !query.isBlank()) {
+                String pattern = "%" + query.trim().toLowerCase() + "%";
+                jakarta.persistence.criteria.Predicate username = cb.like(cb.lower(root.get("username")), pattern);
+                jakarta.persistence.criteria.Predicate firstName = cb.like(cb.lower(root.get("firstName")), pattern);
+                jakarta.persistence.criteria.Predicate lastName = cb.like(cb.lower(root.get("lastName")), pattern);
+                jakarta.persistence.criteria.Predicate email = cb.like(cb.lower(root.get("email")), pattern);
+                predicates.add(cb.or(username, firstName, lastName, email));
+            }
+            if (role != null) {
+                predicates.add(cb.equal(root.get("role"), role));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Page<User> result = userRepository.findAll(spec, pageable);
         List<UserDTO> dtos = result.getContent().stream().map(UserDTO::fromEntity).toList();
         return PageResponse.fromPage(result, dtos);
     }

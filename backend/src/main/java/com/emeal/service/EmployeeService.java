@@ -49,7 +49,27 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public PageResponse<EmployeeDTO> searchEmployees(String query, String department, EmployeeStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "employeeCode"));
-        Page<Employee> result = employeeRepository.searchEmployees(query, department, status, pageable);
+
+        org.springframework.data.jpa.domain.Specification<Employee> spec = (root, q, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (query != null && !query.isBlank()) {
+                String pattern = "%" + query.trim().toLowerCase() + "%";
+                jakarta.persistence.criteria.Predicate code = cb.like(cb.lower(root.get("employeeCode")), pattern);
+                jakarta.persistence.criteria.Predicate fn = cb.like(cb.lower(root.get("firstName")), pattern);
+                jakarta.persistence.criteria.Predicate ln = cb.like(cb.lower(root.get("lastName")), pattern);
+                jakarta.persistence.criteria.Predicate phone = cb.like(cb.lower(root.get("phone")), pattern);
+                predicates.add(cb.or(code, fn, ln, phone));
+            }
+            if (department != null && !department.isBlank()) {
+                predicates.add(cb.equal(root.get("department"), department.trim()));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Page<Employee> result = employeeRepository.findAll(spec, pageable);
         List<EmployeeDTO> dtos = result.getContent().stream().map(EmployeeDTO::fromEntity).toList();
         return PageResponse.fromPage(result, dtos);
     }

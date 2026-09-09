@@ -2,9 +2,8 @@ package com.emeal.repository;
 
 import com.emeal.entity.MealRecord;
 import com.emeal.entity.MealStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,7 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface MealRecordRepository extends JpaRepository<MealRecord, Long> {
+public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, JpaSpecificationExecutor<MealRecord> {
 
     Optional<MealRecord> findByEmployeeIdAndMealDate(Long employeeId, LocalDate mealDate);
 
@@ -42,30 +41,4 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long> {
     long countByMealDateBetweenAndMealStatus(@Param("startDate") LocalDate startDate,
                                              @Param("endDate") LocalDate endDate,
                                              @Param("status") MealStatus status);
-
-    @Query("SELECT m FROM MealRecord m JOIN m.employee e WHERE " +
-           "(cast(:startDate as LocalDate) IS NULL OR m.mealDate >= :startDate) AND " +
-           "(cast(:endDate as LocalDate) IS NULL OR m.mealDate <= :endDate) AND " +
-           "(cast(:employeeId as Long) IS NULL OR e.id = :employeeId) AND " +
-           "(cast(:department as String) IS NULL OR e.department = :department) AND " +
-           "(cast(:status as String) IS NULL OR m.mealStatus = :status) AND " +
-           "(cast(:recordedBy as String) IS NULL OR LOWER(m.recordedBy) LIKE LOWER(CONCAT('%', :recordedBy, '%')))")
-    Page<MealRecord> searchMealRecords(@Param("startDate") LocalDate startDate,
-                                        @Param("endDate") LocalDate endDate,
-                                        @Param("employeeId") Long employeeId,
-                                        @Param("department") String department,
-                                        @Param("status") MealStatus status,
-                                        @Param("recordedBy") String recordedBy,
-                                        Pageable pageable);
-
-    @Query("SELECT m FROM MealRecord m JOIN m.employee e WHERE " +
-           "(cast(:startDate as LocalDate) IS NULL OR m.mealDate >= :startDate) AND " +
-           "(cast(:endDate as LocalDate) IS NULL OR m.mealDate <= :endDate) AND " +
-           "(cast(:department as String) IS NULL OR e.department = :department) AND " +
-           "(cast(:status as String) IS NULL OR m.mealStatus = :status) " +
-           "ORDER BY m.mealDate DESC, e.employeeCode ASC")
-    List<MealRecord> findRecordsForReport(@Param("startDate") LocalDate startDate,
-                                           @Param("endDate") LocalDate endDate,
-                                           @Param("department") String department,
-                                           @Param("status") MealStatus status);
 }

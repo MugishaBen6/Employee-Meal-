@@ -118,9 +118,31 @@ public class MealRecordService {
                                                          int page,
                                                          int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "mealDate", "id"));
-        Page<MealRecord> result = mealRecordRepository.searchMealRecords(
-                startDate, endDate, employeeId, department, status, recordedBy, pageable
-        );
+
+        org.springframework.data.jpa.domain.Specification<MealRecord> spec = (root, q, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("mealDate"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("mealDate"), endDate));
+            }
+            if (employeeId != null) {
+                predicates.add(cb.equal(root.get("employee").get("id"), employeeId));
+            }
+            if (department != null && !department.isBlank()) {
+                predicates.add(cb.equal(root.get("employee").get("department"), department.trim()));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("mealStatus"), status));
+            }
+            if (recordedBy != null && !recordedBy.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("recordedBy")), "%" + recordedBy.trim().toLowerCase() + "%"));
+            }
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Page<MealRecord> result = mealRecordRepository.findAll(spec, pageable);
         List<MealRecordDTO> dtos = result.getContent().stream().map(MealRecordDTO::fromEntity).toList();
         return PageResponse.fromPage(result, dtos);
     }

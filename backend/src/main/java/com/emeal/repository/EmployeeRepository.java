@@ -2,9 +2,9 @@ package com.emeal.repository;
 
 import com.emeal.entity.Employee;
 import com.emeal.entity.EmployeeStatus;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
 
     Optional<Employee> findByEmployeeCode(String employeeCode);
 
@@ -23,19 +23,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     @Query("SELECT DISTINCT e.department FROM Employee e ORDER BY e.department ASC")
     List<String> findAllDepartments();
-
-    @Query("SELECT e FROM Employee e WHERE " +
-           "(cast(:query as String) IS NULL OR " +
-           "LOWER(e.employeeCode) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(e.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(e.lastName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-           "LOWER(e.phone) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
-           "(cast(:department as String) IS NULL OR e.department = :department) AND " +
-           "(cast(:status as String) IS NULL OR e.status = :status)")
-    Page<Employee> searchEmployees(@Param("query") String query,
-                                    @Param("department") String department,
-                                    @Param("status") EmployeeStatus status,
-                                    Pageable pageable);
 
     @Query("SELECT e FROM Employee e WHERE e.status = 'ACTIVE' AND (" +
            "LOWER(e.employeeCode) LIKE LOWER(CONCAT('%', :query, '%')) OR " +

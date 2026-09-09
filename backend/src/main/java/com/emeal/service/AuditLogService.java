@@ -5,10 +5,12 @@ import com.emeal.dto.response.PageResponse;
 import com.emeal.entity.AuditLog;
 import com.emeal.repository.AuditLogRepository;
 import com.emeal.security.UserPrincipal;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -69,9 +72,27 @@ public class AuditLogService {
         LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
 
-        Page<AuditLog> result = auditLogRepository.searchAuditLogs(
-                username, userRole, action, startDateTime, endDateTime, pageable
-        );
+        Specification<AuditLog> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (username != null && !username.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("username")), "%" + username.trim().toLowerCase() + "%"));
+            }
+            if (userRole != null && !userRole.isBlank()) {
+                predicates.add(cb.equal(root.get("userRole"), userRole.trim()));
+            }
+            if (action != null && !action.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("action")), "%" + action.trim().toLowerCase() + "%"));
+            }
+            if (startDateTime != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("timestamp"), startDateTime));
+            }
+            if (endDateTime != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), endDateTime));
+            }
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<AuditLog> result = auditLogRepository.findAll(spec, pageable);
 
         List<AuditLogDTO> dtos = result.getContent().stream()
                 .map(AuditLogDTO::fromEntity)
