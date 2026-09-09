@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { UtensilsCrossed, UserPlus, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, User } from 'lucide-react';
+import { UtensilsCrossed, UserPlus, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, User, Briefcase, ChevronDown } from 'lucide-react';
 import { authApi } from '../api/authApi';
 import { RegisterRequest, Role } from '../types';
 import Button from '../components/common/Button';
@@ -177,6 +177,29 @@ const Register: React.FC = () => {
                 {errors.username && (
                   <p className="text-xs text-rose-400 mt-1">{errors.username.message}</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Company Position / Role <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value as Role)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 pl-10 pr-10 appearance-none cursor-pointer"
+                  >
+                    <option value="HR" className="bg-slate-900 text-white">Human Resources (HR)</option>
+                    <option value="ACCOUNTANT" className="bg-slate-900 text-white">Accountant / Finance</option>
+                    <option value="MANAGING_DIRECTOR" className="bg-slate-900 text-white">Managing Director (MD)</option>
+                    <option value="ADMIN" className="bg-slate-900 text-white">System Administrator</option>
+                  </select>
+                  <Briefcase className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Select your assigned organizational role within the company
+                </p>
               </div>
 
               <div>
