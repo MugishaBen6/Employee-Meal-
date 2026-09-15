@@ -1,5 +1,9 @@
 package com.emeal.controller;
 
+import com.emeal.dto.excel.ExcelEmployeeRowDTO;
+import com.emeal.dto.excel.ExcelImportConfirmRequest;
+import com.emeal.dto.excel.ExcelImportPreviewResponse;
+import com.emeal.dto.excel.ExcelImportResultResponse;
 import com.emeal.dto.request.CreateEmployeeRequest;
 import com.emeal.dto.request.UpdateEmployeeRequest;
 import com.emeal.dto.response.ApiResponse;
@@ -8,12 +12,16 @@ import com.emeal.dto.response.EmployeeDTO;
 import com.emeal.dto.response.PageResponse;
 import com.emeal.entity.EmployeeStatus;
 import com.emeal.service.EmployeeService;
+import com.emeal.service.ExcelImportService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -23,9 +31,11 @@ import java.util.List;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final ExcelImportService excelImportService;
 
-    public EmployeeController(EmployeeService employeeService) {
+    public EmployeeController(EmployeeService employeeService, ExcelImportService excelImportService) {
         this.employeeService = employeeService;
+        this.excelImportService = excelImportService;
     }
 
     @GetMapping
@@ -100,5 +110,45 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<Void>> deactivateEmployee(@PathVariable Long id) {
         employeeService.deactivateEmployee(id);
         return ResponseEntity.ok(ApiResponse.success("Employee deactivated successfully"));
+    }
+
+    // ==========================================
+    // EXCEL IMPORT ENDPOINTS
+    // ==========================================
+
+    @GetMapping("/import/template")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] excelBytes = excelImportService.generateTemplate();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=employee_import_template.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
+    }
+
+    @PostMapping(value = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<ExcelImportPreviewResponse>> previewExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "mealDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate mealDate) {
+        ExcelImportPreviewResponse preview = excelImportService.previewExcel(file, mealDate);
+        return ResponseEntity.ok(ApiResponse.success("Excel parsed and validated successfully", preview));
+    }
+
+    @PostMapping("/import/confirm")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<ExcelImportResultResponse>> confirmImport(
+            @RequestBody ExcelImportConfirmRequest request) {
+        ExcelImportResultResponse result = excelImportService.confirmImport(request);
+        return ResponseEntity.ok(ApiResponse.success("Import completed successfully", result));
+    }
+
+    @PostMapping("/import/error-report")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
+    public ResponseEntity<byte[]> downloadErrorReport(@RequestBody List<ExcelEmployeeRowDTO> failedRows) {
+        byte[] excelBytes = excelImportService.generateErrorReport(failedRows);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=employee_import_errors.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
     }
 }

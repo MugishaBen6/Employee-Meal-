@@ -548,7 +548,15 @@ public class ExcelImportService {
 
     private String normalizePhone(String phone) {
         if (phone == null) return "";
-        return phone.replaceAll("[\\s-]", "");
+        String clean = phone.replaceAll("[\\s-]", "");
+        if (clean.startsWith("+250")) {
+            clean = "0" + clean.substring(4);
+        } else if (clean.startsWith("250") && clean.length() == 12) {
+            clean = "0" + clean.substring(3);
+        } else if (clean.length() == 9 && (clean.startsWith("7") || clean.startsWith("8") || clean.startsWith("9") || clean.startsWith("2") || clean.startsWith("3"))) {
+            clean = "0" + clean;
+        }
+        return clean;
     }
 
     private String parseMealStatus(String raw) {
