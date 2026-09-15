@@ -53,6 +53,9 @@ public class ExcelEmployeeRowDTO {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public boolean isValid() { return "VALID".equalsIgnoreCase(status); }
+    public boolean isDuplicate() { return "DUPLICATE".equalsIgnoreCase(status); }
+
     public String getErrorReason() { return errorReason; }
     public void setErrorReason(String errorReason) { this.errorReason = errorReason; }
 

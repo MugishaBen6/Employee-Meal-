@@ -254,10 +254,12 @@ export interface ExcelEmployeeRow {
   position: string;
   mealStatus: string;
   amountUsed: number | null;
-  valid: boolean;
-  duplicate: boolean;
-  duplicateType: 'IN_FILE' | 'DATABASE' | null;
-  errorMessages: string[];
+  status?: string;
+  errorReason?: string;
+  valid?: boolean;
+  duplicate?: boolean;
+  duplicateType?: 'IN_FILE' | 'DATABASE' | null;
+  errorMessages?: string[];
 }
 
 export interface ExcelImportPreviewResponse {

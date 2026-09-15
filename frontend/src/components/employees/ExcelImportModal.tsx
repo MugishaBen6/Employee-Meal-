@@ -136,7 +136,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       // Auto-select all valid rows
       const validIndices = new Set<number>();
       data.rows.forEach((r, idx) => {
-        if (r.valid) {
+        const isRowValid = r.valid === true || r.status === 'VALID';
+        if (isRowValid) {
           validIndices.add(idx);
         }
       });
@@ -166,7 +167,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     const updated = new Set<number>();
     if (selectAll) {
       previewData.rows.forEach((r, idx) => {
-        if (r.valid) updated.add(idx);
+        const isRowValid = r.valid === true || r.status === 'VALID';
+        if (isRowValid) updated.add(idx);
       });
     }
     setSelectedRowIndices(updated);
@@ -209,7 +211,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     const rowsWithErrors =
       importResult?.errorRows && importResult.errorRows.length > 0
         ? importResult.errorRows
-        : previewData?.rows.filter((r) => !r.valid || r.duplicate) || [];
+        : previewData?.rows.filter((r) => {
+            const isRowValid = r.valid === true || r.status === 'VALID';
+            const isRowDuplicate = r.duplicate === true || r.status === 'DUPLICATE';
+            return !isRowValid || isRowDuplicate;
+          }) || [];
 
     if (rowsWithErrors.length === 0) {
       setErrorMessage('No error records to export');
@@ -235,9 +241,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     previewData?.rows
       .map((row, originalIndex) => ({ row, originalIndex }))
       .filter(({ row }) => {
-        if (filterType === 'VALID') return row.valid;
-        if (filterType === 'INVALID') return !row.valid;
-        if (filterType === 'DUPLICATE') return row.duplicate;
+        const isRowValid = row.valid === true || row.status === 'VALID';
+        const isRowDuplicate = row.duplicate === true || row.status === 'DUPLICATE';
+        if (filterType === 'VALID') return isRowValid;
+        if (filterType === 'INVALID') return !isRowValid;
+        if (filterType === 'DUPLICATE') return isRowDuplicate;
         return true;
       }) || [];
 
@@ -607,7 +615,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                     ) : (
                       filteredPreviewRows.map(({ row, originalIndex }) => {
                         const isSelected = selectedRowIndices.has(originalIndex);
-                        const isRowValid = row.valid;
+                        const isRowValid = row.valid === true || row.status === 'VALID';
+                        const isRowDuplicate = row.duplicate === true || row.status === 'DUPLICATE';
 
                         return (
                           <tr
@@ -615,7 +624,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             className={`transition-colors ${
                               !isRowValid
                                 ? 'bg-rose-50/40 text-rose-900'
-                                : row.duplicate
+                                : isRowDuplicate
                                 ? 'bg-amber-50/30 text-amber-900'
                                 : isSelected
                                 ? 'bg-indigo-50/30'
@@ -679,17 +688,31 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                                 </div>
                               ) : (
                                 <div className="space-y-0.5">
-                                  {row.errorMessages.map((msg, i) => (
-                                    <div
-                                      key={i}
-                                      className="flex items-center gap-1 text-[11px] text-rose-600"
-                                    >
+                                  {row.errorReason ? (
+                                    <div className="flex items-center gap-1 text-[11px] text-rose-600">
                                       <XCircle className="w-3 h-3 shrink-0" />
-                                      <span className="truncate max-w-[200px]" title={msg}>
-                                        {msg}
+                                      <span className="truncate max-w-[200px]" title={row.errorReason}>
+                                        {row.errorReason}
                                       </span>
                                     </div>
-                                  ))}
+                                  ) : row.errorMessages && row.errorMessages.length > 0 ? (
+                                    row.errorMessages.map((msg, i) => (
+                                      <div
+                                        key={i}
+                                        className="flex items-center gap-1 text-[11px] text-rose-600"
+                                      >
+                                        <XCircle className="w-3 h-3 shrink-0" />
+                                        <span className="truncate max-w-[200px]" title={msg}>
+                                          {msg}
+                                        </span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="flex items-center gap-1 text-[11px] text-rose-600">
+                                      <XCircle className="w-3 h-3 shrink-0" />
+                                      <span>Invalid record</span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </td>

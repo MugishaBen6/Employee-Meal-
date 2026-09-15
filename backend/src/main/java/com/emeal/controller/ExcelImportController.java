@@ -37,7 +37,7 @@ public class ExcelImportController {
     }
 
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse<ExcelImportPreviewResponse>> previewExcel(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "mealDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate mealDate) {
@@ -46,7 +46,7 @@ public class ExcelImportController {
     }
 
     @PostMapping("/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse<ExcelImportResultResponse>> confirmImport(
             @RequestBody ExcelImportConfirmRequest request) {
         ExcelImportResultResponse result = excelImportService.confirmImport(request);
@@ -54,7 +54,7 @@ public class ExcelImportController {
     }
 
     @PostMapping("/error-report")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
     public ResponseEntity<byte[]> downloadErrorReport(@RequestBody List<ExcelEmployeeRowDTO> failedRows) {
         byte[] excelBytes = excelImportService.generateErrorReport(failedRows);
         return ResponseEntity.ok()
