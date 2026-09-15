@@ -68,7 +68,7 @@ export interface EmployeeAttendancePageResponse {
 }
 
 export interface CreateEmployeeRequest {
-  employeeCode: string;
+  employeeCode?: string;
   employeeName: string;
   phone: string;
   position: string;

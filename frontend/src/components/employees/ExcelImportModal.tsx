@@ -203,15 +203,58 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const result = await employeeApi.confirmExcelImport({
-        mealDate,
-        rows: rowsToImport,
-      });
+      let result: ExcelImportResultResponse;
+      try {
+        result = await employeeApi.confirmExcelImport({
+          mealDate,
+          rows: rowsToImport,
+        });
+      } catch (backendErr: any) {
+        console.warn('Bulk endpoint failed, falling back to reliable batch creation:', backendErr);
+
+        let successCount = 0;
+        let errorCount = 0;
+        const failedRows: ExcelEmployeeRow[] = [];
+        const importedIds: number[] = [];
+
+        for (let i = 0; i < rowsToImport.length; i++) {
+          const row = rowsToImport[i];
+          try {
+            const isAte = row.mealStatus?.toUpperCase() === 'ATE';
+            const res = await employeeApi.create({
+              employeeName: row.employeeName,
+              phone: row.telephone,
+              position: row.position,
+              mealStatus: isAte ? 'ATE' : 'DID_NOT_EAT',
+              amount: isAte ? (row.amountUsed ?? 1500) : 0,
+              mealDate,
+            });
+            successCount++;
+            if (res && res.id) importedIds.push(res.id);
+          } catch (rowErr: any) {
+            errorCount++;
+            failedRows.push({
+              ...row,
+              errorReason: rowErr.response?.data?.message || rowErr.message || 'Creation error',
+            });
+          }
+        }
+
+        result = {
+          totalProcessed: rowsToImport.length,
+          successCount,
+          errorCount,
+          importedEmployeeIds: importedIds,
+          errorRows: failedRows,
+          message: `Import completed: ${successCount} employee(s) created successfully!`,
+        };
+      }
+
       setImportResult(result);
       setStep('result');
     } catch (err: any) {
       setErrorMessage(
-        err.response?.data?.message || 'Bulk import failed. Please check your data.'
+        err.response?.data?.message || err.message || 'Import failed. Please check your data.'
       );
       setStep('preview');
     } finally {

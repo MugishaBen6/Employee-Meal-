@@ -228,8 +228,12 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeDTO createEmployee(CreateEmployeeRequest request) {
-        if (employeeRepository.existsByEmployeeCode(request.getEmployeeCode().trim())) {
-            throw new DuplicateResourceException("Employee ID '" + request.getEmployeeCode() + "' already exists");
+        String code = (request.getEmployeeCode() != null && !request.getEmployeeCode().isBlank())
+                ? request.getEmployeeCode().trim().toUpperCase()
+                : generateNextEmployeeCode();
+
+        if (employeeRepository.existsByEmployeeCode(code)) {
+            throw new DuplicateResourceException("Employee ID '" + code + "' already exists");
         }
 
         String fullName = (request.getEmployeeName() != null && !request.getEmployeeName().isBlank())
@@ -252,12 +256,12 @@ public class EmployeeService {
                 : "General";
 
         Employee employee = Employee.builder()
-                .employeeCode(request.getEmployeeCode().toUpperCase().trim())
+                .employeeCode(code)
                 .firstName(firstName)
                 .lastName(lastName)
                 .department(dept)
-                .position(request.getPosition().trim())
-                .phone(request.getPhone().trim())
+                .position(request.getPosition() != null ? request.getPosition().trim() : "Employee")
+                .phone(request.getPhone() != null ? request.getPhone().trim() : "")
                 .email(request.getEmail() != null ? request.getEmail().trim() : null)
                 .status(EmployeeStatus.ACTIVE)
                 .build();
@@ -338,5 +342,25 @@ public class EmployeeService {
 
         auditLogService.logAction("DEACTIVATE_EMPLOYEE", "EMPLOYEE", employee.getId().toString(),
                 "Deactivated employee " + employee.getEmployeeCode() + " (" + employee.getFullName() + ")");
+    }
+
+    private String generateNextEmployeeCode() {
+        List<String> codes = employeeRepository.findAllEmployeeCodes();
+        int maxSeq = 0;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("EMP(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+        for (String code : codes) {
+            if (code != null) {
+                java.util.regex.Matcher m = pattern.matcher(code.trim());
+                if (m.find()) {
+                    try {
+                        int val = Integer.parseInt(m.group(1));
+                        if (val > maxSeq) {
+                            maxSeq = val;
+                        }
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return String.format("EMP%03d", maxSeq + 1);
     }
 }
