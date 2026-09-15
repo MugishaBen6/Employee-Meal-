@@ -52,7 +52,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> 
-                    auth.requestMatchers("/auth/**", "/h2-console/**", "/error").permitAll()
+                    auth.requestMatchers("/auth/**", "/h2-console/**", "/error", "/employees/import/template").permitAll()
                         .requestMatchers("/users/**").hasRole("ADMIN")
                         .requestMatchers("/settings/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

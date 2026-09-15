@@ -28,7 +28,6 @@ public class ExcelImportController {
     }
 
     @GetMapping("/template")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
     public ResponseEntity<byte[]> downloadTemplate() {
         byte[] excelBytes = excelImportService.generateTemplate();
         return ResponseEntity.ok()

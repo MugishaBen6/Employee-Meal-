@@ -17,6 +17,7 @@ import Modal from '../components/common/Modal';
 import Skeleton from '../components/common/Skeleton';
 import Toast from '../components/common/Toast';
 import ExcelImportModal from '../components/employees/ExcelImportModal';
+import { downloadClientExcelTemplate } from '../utils/templateGenerator';
 import {
   Users,
   Search,
@@ -139,17 +140,27 @@ export const Employees: React.FC = () => {
   const handleDownloadTemplate = async () => {
     try {
       const blob = await employeeApi.downloadTemplate();
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'employee_import_template.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      if (blob && blob.size > 0 && blob.type !== 'application/json') {
+        const url = window.URL.createObjectURL(new Blob([blob]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'employee_import_template.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setToast({ message: 'Excel template downloaded successfully!', type: 'success' });
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend template download failed, using client generator fallback:', err);
+    }
+
+    try {
+      downloadClientExcelTemplate();
       setToast({ message: 'Excel template downloaded successfully!', type: 'success' });
     } catch (err) {
-      setToast({ message: 'Failed to download Excel template', type: 'error' });
+      setToast({ message: 'Failed to generate Excel template', type: 'error' });
     }
   };
 
