@@ -16,6 +16,7 @@ import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import Skeleton from '../components/common/Skeleton';
 import Toast from '../components/common/Toast';
+import ExcelImportModal from '../components/employees/ExcelImportModal';
 import {
   Users,
   Search,
@@ -30,6 +31,9 @@ import {
   Coins,
   ChevronLeft,
   ChevronRight,
+  UploadCloud,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export const Employees: React.FC = () => {
@@ -41,11 +45,21 @@ export const Employees: React.FC = () => {
 
   // Filters & Pagination State
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [department, setDepartment] = useState('');
   const [mealStatusFilter, setMealStatusFilter] = useState('');
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<EmployeeStatus | ''>('ACTIVE');
   const [page, setPage] = useState(0);
   const [size] = useState(10);
+
+  // Debounce search query changes by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // Data State
   const [attendanceList, setAttendanceList] = useState<EmployeeAttendance[]>([]);
@@ -67,6 +81,7 @@ export const Employees: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeAttendance | null>(null);
   const [mealHistory, setMealHistory] = useState<MealRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -98,7 +113,7 @@ export const Employees: React.FC = () => {
     try {
       const data = await employeeApi.getAttendance({
         date: selectedDate,
-        query: query || undefined,
+        query: debouncedQuery || undefined,
         department: department || undefined,
         mealStatus: mealStatusFilter || undefined,
         status: (employeeStatusFilter as EmployeeStatus) || undefined,
@@ -115,11 +130,28 @@ export const Employees: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, query, department, mealStatusFilter, employeeStatusFilter, page, size]);
+  }, [selectedDate, debouncedQuery, department, mealStatusFilter, employeeStatusFilter, page, size]);
 
   useEffect(() => {
     fetchAttendance();
   }, [fetchAttendance]);
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await employeeApi.downloadTemplate();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'employee_import_template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setToast({ message: 'Excel template downloaded successfully!', type: 'success' });
+    } catch (err) {
+      setToast({ message: 'Failed to download Excel template', type: 'error' });
+    }
+  };
 
   useEffect(() => {
     const fetchDepts = async () => {
@@ -259,10 +291,40 @@ export const Employees: React.FC = () => {
         </div>
 
         {hasRole('ADMIN', 'HR') && (
-          <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Employee
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadTemplate}
+              className="text-xs sm:text-sm text-slate-700 hover:bg-slate-50 border-slate-300"
+            >
+              <Download className="w-4 h-4 mr-1.5 text-slate-500" />
+              Download Template
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportModalOpen(true)}
+              className="text-xs sm:text-sm text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70 border-indigo-200"
+            >
+              <UploadCloud className="w-4 h-4 mr-1.5 text-indigo-600" />
+              Import Excel
+            </Button>
+
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAddModalOpen(true)}
+              className="text-xs sm:text-sm"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add Employee
+            </Button>
+          </div>
         )}
       </div>
 
@@ -793,6 +855,17 @@ export const Employees: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      {/* Modal: Excel Employee Import */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          fetchAttendance();
+          setToast({ message: 'Excel import completed and attendance refreshed!', type: 'success' });
+        }}
+        defaultDate={selectedDate}
+      />
     </div>
   );
 };

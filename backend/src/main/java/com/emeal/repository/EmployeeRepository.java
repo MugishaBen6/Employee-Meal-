@@ -19,7 +19,19 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     boolean existsByEmployeeCode(String employeeCode);
 
+    boolean existsByPhone(String phone);
+
+    Optional<Employee> findByPhone(String phone);
+
     long countByStatus(EmployeeStatus status);
+
+    long countByStatusAndDepartment(EmployeeStatus status, String department);
+
+    @Query("SELECT e.phone FROM Employee e WHERE e.phone IS NOT NULL")
+    List<String> findAllPhones();
+
+    @Query("SELECT e.employeeCode FROM Employee e")
+    List<String> findAllEmployeeCodes();
 
     @Query("SELECT DISTINCT e.department FROM Employee e ORDER BY e.department ASC")
     List<String> findAllDepartments();

@@ -246,3 +246,40 @@ export interface ResetPasswordRequest {
 export interface ApproveUserRequest {
   role: Role;
 }
+
+export interface ExcelEmployeeRow {
+  rowNumber: number;
+  employeeName: string;
+  telephone: string;
+  position: string;
+  mealStatus: string;
+  amountUsed: number | null;
+  valid: boolean;
+  duplicate: boolean;
+  duplicateType: 'IN_FILE' | 'DATABASE' | null;
+  errorMessages: string[];
+}
+
+export interface ExcelImportPreviewResponse {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  rows: ExcelEmployeeRow[];
+  summaryMessage: string;
+}
+
+export interface ExcelImportConfirmRequest {
+  mealDate?: string;
+  rows: ExcelEmployeeRow[];
+}
+
+export interface ExcelImportResultResponse {
+  totalProcessed: number;
+  successCount: number;
+  errorCount: number;
+  importedEmployeeIds: number[];
+  errorRows: ExcelEmployeeRow[];
+  message: string;
+}
+

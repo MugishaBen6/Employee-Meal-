@@ -119,46 +119,25 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public List<DepartmentMealStats> getDepartmentStatsForDate(LocalDate date) {
-        List<Employee> employees = employeeRepository.findAll();
-        Map<String, List<Employee>> deptMap = employees.stream()
-                .collect(Collectors.groupingBy(Employee::getDepartment));
-
-        List<MealRecord> records = mealRecordRepository.findByMealDate(date);
-        Map<Long, MealRecord> recordMap = records.stream()
-                .collect(Collectors.toMap(r -> r.getEmployee().getId(), r -> r, (r1, r2) -> r1));
-
+        List<Object[]> rows = mealRecordRepository.getDepartmentStatsForDate(date);
         List<DepartmentMealStats> stats = new ArrayList<>();
 
-        for (Map.Entry<String, List<Employee>> entry : deptMap.entrySet()) {
-            String dept = entry.getKey();
-            List<Employee> deptEmployees = entry.getValue();
-            long total = deptEmployees.size();
-            long ate = 0;
-            long didNotEat = 0;
-            BigDecimal amount = BigDecimal.ZERO;
-
-            for (Employee emp : deptEmployees) {
-                MealRecord mr = recordMap.get(emp.getId());
-                if (mr != null) {
-                    if (mr.getMealStatus() == MealStatus.ATE) {
-                        ate++;
-                        amount = amount.add(mr.getAmount());
-                    } else if (mr.getMealStatus() == MealStatus.DID_NOT_EAT) {
-                        didNotEat++;
-                    }
-                }
-            }
+        for (Object[] row : rows) {
+            String dept = (String) row[0];
+            long totalEmployees = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            long ateCount = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            long didNotEatCount = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+            BigDecimal totalAmount = row[4] != null ? (BigDecimal) row[4] : BigDecimal.ZERO;
 
             stats.add(DepartmentMealStats.builder()
                     .department(dept)
-                    .totalEmployees(total)
-                    .ateCount(ate)
-                    .didNotEatCount(didNotEat)
-                    .totalAmount(amount)
+                    .totalEmployees(totalEmployees)
+                    .ateCount(ateCount)
+                    .didNotEatCount(didNotEatCount)
+                    .totalAmount(totalAmount)
                     .build());
         }
 
-        stats.sort(Comparator.comparing(DepartmentMealStats::getDepartment));
         return stats;
     }
 }

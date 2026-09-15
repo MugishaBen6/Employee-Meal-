@@ -49,14 +49,12 @@ public class ReportService {
         String companyName = settingsService.getSettingValue("COMPANY_NAME", "Employee Meal Management System");
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
-        List<Employee> allEmployees = employeeRepository.findAll();
+        long totalEmployees;
         if (department != null && !department.isBlank()) {
-            allEmployees = allEmployees.stream()
-                    .filter(e -> e.getDepartment().equalsIgnoreCase(department.trim()))
-                    .toList();
+            totalEmployees = employeeRepository.countByStatusAndDepartment(EmployeeStatus.ACTIVE, department.trim());
+        } else {
+            totalEmployees = employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
         }
-
-        long totalEmployees = allEmployees.stream().filter(e -> e.getStatus() == EmployeeStatus.ACTIVE).count();
 
         List<MealRecord> mealRecords;
         if (department != null && !department.isBlank()) {

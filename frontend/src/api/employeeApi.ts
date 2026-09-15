@@ -54,4 +54,42 @@ export const employeeApi = {
     const res = await axiosClient.delete<ApiResponse<void>>(`/employees/${id}`);
     return res.data;
   },
+
+  downloadTemplate: async () => {
+    const response = await axiosClient.get('/employees/import/template', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  previewExcelImport: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axiosClient.post<ApiResponse<import('../types').ExcelImportPreviewResponse>>(
+      '/employees/import/preview',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return res.data.data;
+  },
+
+  confirmExcelImport: async (data: import('../types').ExcelImportConfirmRequest) => {
+    const res = await axiosClient.post<ApiResponse<import('../types').ExcelImportResultResponse>>(
+      '/employees/import/confirm',
+      data
+    );
+    return res.data.data;
+  },
+
+  downloadErrorReport: async (errorRows: import('../types').ExcelEmployeeRow[]) => {
+    const response = await axiosClient.post('/employees/import/error-report', errorRows, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
+
