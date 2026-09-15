@@ -67,12 +67,7 @@ export const employeeApi = {
     formData.append('file', file);
     const res = await axiosClient.post<ApiResponse<import('../types').ExcelImportPreviewResponse>>(
       '/employees/import/preview',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
+      formData
     );
     return res.data.data;
   },
