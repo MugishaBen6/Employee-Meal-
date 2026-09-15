@@ -205,12 +205,42 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     try {
       let result: ExcelImportResultResponse;
       try {
-        result = await employeeApi.confirmExcelImport({
+        const rawRes: any = await employeeApi.confirmExcelImport({
           mealDate,
           rows: rowsToImport,
         });
+
+        const successCount = rawRes.successCount ?? rawRes.importedCount ?? 0;
+        const duplicateCount = rawRes.duplicateCount ?? 0;
+        const invalidCount = rawRes.invalidCount ?? 0;
+        const errorCount = rawRes.errorCount ?? (duplicateCount + invalidCount);
+        const totalProcessed = rawRes.totalProcessed ?? (successCount + errorCount);
+
+        result = {
+          totalProcessed,
+          successCount,
+          errorCount,
+          importedEmployeeIds: rawRes.importedEmployeeIds || [],
+          errorRows: rawRes.errorRows || rawRes.failedRows || [],
+          message: rawRes.message || `Import completed: ${successCount} employee(s) created successfully!`,
+        };
       } catch (backendErr: any) {
         console.warn('Bulk endpoint failed, falling back to reliable batch creation:', backendErr);
+
+        let currentEmployees: any[] = [];
+        try {
+          const empRes = await employeeApi.getEmployees({ size: 200 });
+          currentEmployees = empRes?.content || [];
+        } catch (_) {}
+
+        let maxCodeNum = 0;
+        currentEmployees.forEach((e) => {
+          const match = (e.employeeCode || '').match(/(\d+)/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxCodeNum) maxCodeNum = num;
+          }
+        });
 
         let successCount = 0;
         let errorCount = 0;
@@ -219,9 +249,12 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
         for (let i = 0; i < rowsToImport.length; i++) {
           const row = rowsToImport[i];
+          maxCodeNum++;
+          const generatedCode = `EMP${String(maxCodeNum).padStart(3, '0')}`;
           try {
             const isAte = row.mealStatus?.toUpperCase() === 'ATE';
             const res = await employeeApi.create({
+              employeeCode: generatedCode,
               employeeName: row.employeeName,
               phone: row.telephone,
               position: row.position,

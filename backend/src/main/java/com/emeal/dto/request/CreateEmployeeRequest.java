@@ -9,7 +9,6 @@ import java.time.LocalDate;
 
 public class CreateEmployeeRequest {
 
-    @NotBlank(message = "Employee ID is required")
     @Size(max = 50, message = "Employee ID cannot exceed 50 characters")
     private String employeeCode;
 
