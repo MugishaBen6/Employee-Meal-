@@ -888,13 +888,31 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         {/* STEP 3: RESULT SUMMARY */}
         {step === 'result' && importResult && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="p-6 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-3">
-              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
-                <CheckCircle2 className="w-8 h-8" />
+            <div
+              className={`p-6 border rounded-2xl text-center space-y-3 ${
+                importResult.successCount > 0
+                  ? 'bg-slate-50 border-slate-200/80'
+                  : 'bg-rose-50/50 border-rose-200'
+              }`}
+            >
+              <div
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto shadow-xs ${
+                  importResult.successCount > 0
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : 'bg-rose-100 text-rose-600'
+                }`}
+              >
+                {importResult.successCount > 0 ? (
+                  <CheckCircle2 className="w-8 h-8" />
+                ) : (
+                  <XCircle className="w-8 h-8" />
+                )}
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  Import Process Completed!
+                  {importResult.successCount > 0
+                    ? 'Import Process Completed!'
+                    : 'Import Failed — No Records Saved'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {importResult.message}
@@ -930,39 +948,65 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </div>
             </div>
 
-            {/* Error Report Button if any errors */}
-            {importResult.errorCount > 0 && (
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="text-xs text-amber-800 font-medium">
-                    Some rows were not imported due to validation errors or duplicate phone numbers.
+            {/* Detailed Failed Rows List if any errors */}
+            {importResult.errorRows && importResult.errorRows.length > 0 && (
+              <div className="border border-rose-200 bg-rose-50/30 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">
+                    Error Details ({importResult.errorRows.length} failed)
                   </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadErrorReport}
+                    className="text-xs text-rose-800 border-rose-300 hover:bg-rose-100 shrink-0"
+                  >
+                    <FileDown className="w-3.5 h-3.5 mr-1" />
+                    Download Error Excel
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadErrorReport}
-                  className="text-xs text-amber-900 border-amber-300 hover:bg-amber-100 shrink-0"
-                >
-                  <FileDown className="w-3.5 h-3.5 mr-1.5" />
-                  Download Error Report (.xlsx)
-                </Button>
+                <div className="max-h-40 overflow-y-auto divide-y divide-rose-100 text-xs text-rose-900 bg-white rounded-lg border border-rose-100 p-2">
+                  {importResult.errorRows.map((r, i) => (
+                    <div key={i} className="py-1.5 flex items-center justify-between gap-2">
+                      <span className="font-semibold">{r.employeeName || `Row ${r.rowNumber}`}</span>
+                      <span className="text-rose-600 text-[11px] truncate max-w-[300px]">
+                        {r.errorReason || 'Server rejected creation'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Done Action */}
-            <div className="flex justify-end pt-2">
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-2">
+              {importResult.successCount === 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep('preview')}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1.5" />
+                  Back to Preview & Retry
+                </Button>
+              ) : (
+                <div />
+              )}
+
               <Button
                 type="button"
                 variant="primary"
                 onClick={() => {
                   handleClose();
-                  onSuccess();
+                  if (importResult.successCount > 0) {
+                    onSuccess();
+                  }
                 }}
               >
-                Done & Refresh Attendance List
+                {importResult.successCount > 0
+                  ? 'Done & Refresh Attendance List'
+                  : 'Close'}
               </Button>
             </div>
           </div>
