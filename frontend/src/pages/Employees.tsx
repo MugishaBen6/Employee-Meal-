@@ -137,25 +137,7 @@ export const Employees: React.FC = () => {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const blob = await employeeApi.downloadTemplate();
-      if (blob && blob.size > 0 && blob.type !== 'application/json') {
-        const url = window.URL.createObjectURL(new Blob([blob]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'employee_import_template.xlsx');
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        setToast({ message: 'Excel template downloaded successfully!', type: 'success' });
-        return;
-      }
-    } catch (err) {
-      console.warn('Backend template download failed, using client generator fallback:', err);
-    }
-
+  const handleDownloadTemplate = () => {
     try {
       downloadClientExcelTemplate();
       setToast({ message: 'Excel template downloaded successfully!', type: 'success' });
