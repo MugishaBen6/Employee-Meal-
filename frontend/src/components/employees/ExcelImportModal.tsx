@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { employeeApi } from '../../api/employeeApi';
 import { downloadClientExcelTemplate } from '../../utils/templateGenerator';
+import { parseExcelOrCsvClient } from '../../utils/excelParser';
 import {
   ExcelEmployeeRow,
   ExcelImportPreviewResponse,
@@ -131,7 +132,18 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const data = await employeeApi.previewExcelImport(selectedFile);
+      let data: ExcelImportPreviewResponse | null = null;
+      try {
+        data = await parseExcelOrCsvClient(selectedFile);
+      } catch (clientErr) {
+        console.warn('Client parsing error, attempting server parsing:', clientErr);
+        data = await employeeApi.previewExcelImport(selectedFile);
+      }
+
+      if (!data || !data.rows || data.rows.length === 0) {
+        throw new Error('No employee records found in the uploaded file.');
+      }
+
       setPreviewData(data);
       // Auto-select all valid rows
       const validIndices = new Set<number>();
@@ -145,7 +157,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setStep('preview');
     } catch (err: any) {
       setErrorMessage(
-        err.response?.data?.message || 'Failed to parse and validate Excel file'
+        err.message || err.response?.data?.message || 'Failed to parse and validate Excel file'
       );
     } finally {
       setLoading(false);
