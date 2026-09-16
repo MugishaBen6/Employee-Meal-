@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/authApi';
 import Button from '../components/common/Button';
+import loginBg from '../assets/login-bg.jpg';
 
 interface LoginFormInputs {
   usernameOrEmail: string;
@@ -79,22 +80,13 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="h-screen max-h-screen bg-[#f1f5f9] relative flex flex-col justify-center items-center p-3 sm:p-4 overflow-hidden font-sans select-none selection:bg-blue-500 selection:text-white">
-      {/* Subtle Background Decorative Food Watermarks */}
-      <div className="absolute -top-10 -left-10 w-56 h-56 sm:w-72 sm:h-72 pointer-events-none opacity-[0.06] text-blue-900 rotate-[-15deg]">
-        <UtensilsCrossed className="w-full h-full stroke-[1.2]" />
-      </div>
-
-      <div className="absolute -bottom-12 -left-8 w-60 h-60 sm:w-80 sm:h-80 pointer-events-none opacity-[0.05] text-blue-900 rotate-[25deg]">
-        <Utensils className="w-full h-full stroke-[1.2]" />
-      </div>
-
-      <div className="absolute top-1/4 -right-12 w-64 h-64 sm:w-96 sm:h-96 pointer-events-none opacity-[0.04] text-blue-900 rotate-[-30deg]">
-        <UtensilsCrossed className="w-full h-full stroke-[1.2]" />
-      </div>
-
-      {/* Soft Radial Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[280px] bg-blue-400/10 blur-[100px] rounded-full pointer-events-none" />
+    <div
+      className="h-screen max-h-screen relative flex flex-col justify-center items-center p-3 sm:p-4 overflow-hidden font-sans select-none selection:bg-blue-500 selection:text-white bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${loginBg})` }}
+    >
+      {/* Soft Elegant Backdrop Overlay */}
+      <div className="absolute inset-0 bg-slate-900/15 backdrop-blur-[1px] pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-slate-900/20 pointer-events-none" />
 
       {/* Main Container */}
       <div className="w-full max-w-[430px] z-10 flex flex-col items-center my-auto">
