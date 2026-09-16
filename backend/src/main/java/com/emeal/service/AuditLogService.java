@@ -31,7 +31,8 @@ public class AuditLogService {
         this.auditLogRepository = auditLogRepository;
     }
 
-    @Transactional
+    @org.springframework.scheduling.annotation.Async
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void logAction(String action, String entityType, String entityId, String description) {
         String username = "SYSTEM";
         String userRole = "SYSTEM";

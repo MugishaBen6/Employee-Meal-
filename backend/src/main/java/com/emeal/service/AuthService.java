@@ -133,9 +133,8 @@ public class AuthService {
     public JwtResponse login(LoginRequest loginRequest) {
         String identifier = loginRequest.getUsernameOrEmail().trim();
 
-        User user = userRepository.findByUsername(identifier)
-                .orElseGet(() -> userRepository.findByEmail(identifier.toLowerCase())
-                        .orElseThrow(() -> new BadRequestException("Invalid username/email or password")));
+        User user = userRepository.findByIdentifier(identifier)
+                .orElseThrow(() -> new BadRequestException("Invalid username/email or password"));
 
         if (user.getStatus() == UserStatus.PENDING_APPROVAL) {
             throw new BadRequestException("Your account is pending administrator approval before you can log in.");

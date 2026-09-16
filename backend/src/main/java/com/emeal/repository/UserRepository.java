@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     Optional<User> findByEmail(String email);
 
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE LOWER(u.username) = LOWER(:identifier) OR LOWER(u.email) = LOWER(:identifier)")
+    Optional<User> findByIdentifier(@org.springframework.data.repository.query.Param("identifier") String identifier);
+
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);

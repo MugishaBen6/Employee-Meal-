@@ -43,8 +43,9 @@ const Login: React.FC = () => {
   const onSubmit = async (data: LoginFormInputs) => {
     setError(null);
     try {
-      await login(data.usernameOrEmail, data.password);
-      navigate(from, { replace: true });
+      const user = await login(data.usernameOrEmail, data.password);
+      const target = location.state?.from?.pathname || (user?.role === 'ADMIN' ? '/admin/dashboard' : user?.role === 'MANAGING_DIRECTOR' ? '/director/dashboard' : user?.role === 'ACCOUNTANT' ? '/accountant/dashboard' : user?.role === 'HR' ? '/hr/dashboard' : '/dashboard');
+      navigate(target, { replace: true });
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Invalid username/email or password';
       setError(msg);
