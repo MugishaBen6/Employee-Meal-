@@ -98,8 +98,8 @@ const Login: React.FC = () => {
           </h1>
 
           {/* Large Main App Icon (Fork and Knife placed below Company Name) */}
-          <div className="mt-2.5 w-13 h-13 sm:w-15 sm:h-15 bg-gradient-to-b from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 border border-white/40 ring-3 ring-blue-500/15 transition-transform duration-200 hover:scale-105">
-            <UtensilsCrossed className="w-6.5 h-6.5 sm:w-7.5 sm:h-7.5 text-white drop-shadow-xs" />
+          <div className="mt-2.5 w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-b from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 border border-white/40 ring-4 ring-blue-500/15 transition-transform duration-200 hover:scale-105 shrink-0">
+            <UtensilsCrossed className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-xs" />
           </div>
         </div>
 
@@ -107,11 +107,13 @@ const Login: React.FC = () => {
         <div className="w-full bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-slate-900/10 border border-slate-200/80 p-4 sm:py-5 sm:px-6 transition-all">
           {/* Meal Emblem Graphic */}
           <div className="flex flex-col items-center justify-center mb-2 sm:mb-2.5">
-            <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+            <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center shrink-0">
               {/* Dual-tone dynamic circular swoosh rings */}
               <svg
-                className="absolute inset-0 w-full h-full -rotate-45"
+                className="w-12 h-12 sm:w-14 sm:h-14 -rotate-45"
                 viewBox="0 0 100 100"
+                width="48"
+                height="48"
               >
                 <path
                   d="M 50 8 A 42 42 0 0 1 92 50"
@@ -130,7 +132,7 @@ const Login: React.FC = () => {
               </svg>
 
               {/* Inner Plate & Utensils Emblem */}
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-slate-50 to-blue-50/60 border border-slate-200 flex items-center justify-center shadow-inner">
+              <div className="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-slate-50 to-blue-50/60 border border-slate-200 flex items-center justify-center shadow-inner">
                 <Utensils className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-blue-600" />
               </div>
             </div>
@@ -190,7 +192,7 @@ const Login: React.FC = () => {
                   {...register('usernameOrEmail', {
                     required: 'Email or Username is required',
                   })}
-                  className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pl-8.5 sm:pl-9 transition-all shadow-xs"
+                  className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pl-9 transition-all shadow-xs"
                   placeholder="Enter your email or username"
                   autoComplete="username"
                 />
@@ -214,7 +216,7 @@ const Login: React.FC = () => {
                   {...register('password', {
                     required: 'Password is required',
                   })}
-                  className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pl-8.5 sm:pl-9 pr-8.5 sm:pr-9 transition-all shadow-xs"
+                  className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pl-9 pr-9 transition-all shadow-xs"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                 />
