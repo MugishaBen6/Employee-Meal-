@@ -135,6 +135,11 @@ const Login: React.FC = () => {
               </div>
             </div>
 
+            {/* System Title Badge */}
+            <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200/70 text-[11px] sm:text-xs font-bold text-blue-700 tracking-wide">
+              Employee Meal Management System
+            </span>
+
             {/* Welcome Back & Subtitle */}
             <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 mt-1 tracking-tight leading-tight">
               Welcome Back
