@@ -54,10 +54,17 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        {/* Company Name Header */}
+        <div className="mb-4 sm:mb-5">
+          <span className="inline-block px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-xl bg-blue-950/60 border border-blue-500/30 text-blue-400 text-xs sm:text-sm font-bold tracking-wider sm:tracking-widest uppercase shadow-sm">
+            RWANDA PLASTIC INDUSTRY
+          </span>
+        </div>
+
         <div className="mx-auto h-14 w-14 sm:h-16 sm:w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
           <UtensilsCrossed className="h-8 w-8 sm:h-9 sm:w-9 text-white" />
         </div>
-        <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="mt-4 sm:mt-5 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
           Employee Meal System
         </h2>
         <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-400">
