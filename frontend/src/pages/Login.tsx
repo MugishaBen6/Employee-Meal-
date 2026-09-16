@@ -91,25 +91,15 @@ const Login: React.FC = () => {
       {/* Main Container */}
       <div className="w-full max-w-[430px] z-10 flex flex-col items-center my-auto">
         {/* Top Header Section with Frosted Glass Container for High Visibility */}
-        <div className="text-center mb-2 sm:mb-2.5 bg-white/95 backdrop-blur-md px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl shadow-lg shadow-slate-900/10 border border-white/80 w-full flex flex-col items-center transition-all">
+        <div className="text-center mb-2.5 sm:mb-3 bg-white/95 backdrop-blur-md px-4 sm:px-6 py-3 sm:py-3.5 rounded-2xl shadow-lg shadow-slate-900/10 border border-white/80 w-full flex flex-col items-center transition-all">
           {/* Company Name */}
           <h1 className="text-base sm:text-lg md:text-xl font-black text-slate-950 tracking-tight uppercase leading-tight">
             RWANDA PLASTIC INDUSTRY
           </h1>
 
-          {/* System Name */}
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-slate-800 mt-0.5 leading-tight">
-            Employee Meal Management System
-          </p>
-
-          {/* Tagline */}
-          <p className="text-[11px] sm:text-xs md:text-sm font-semibold text-blue-700 tracking-wide mt-0.5 leading-tight">
-            Healthy Employees • Productive Workplace • A Stronger Tomorrow
-          </p>
-
-          {/* Main App Icon (Fork and Knife placed below the Company Name) */}
-          <div className="mt-1.5 sm:mt-2 w-9 h-9 sm:w-11 sm:h-11 bg-gradient-to-b from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-md shadow-blue-500/25 border border-white/40 ring-2 ring-blue-500/15 transition-transform duration-200 hover:scale-105">
-            <UtensilsCrossed className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-xs" />
+          {/* Large Main App Icon (Fork and Knife placed below Company Name) */}
+          <div className="mt-2.5 w-13 h-13 sm:w-15 sm:h-15 bg-gradient-to-b from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 border border-white/40 ring-3 ring-blue-500/15 transition-transform duration-200 hover:scale-105">
+            <UtensilsCrossed className="w-6.5 h-6.5 sm:w-7.5 sm:h-7.5 text-white drop-shadow-xs" />
           </div>
         </div>
 
