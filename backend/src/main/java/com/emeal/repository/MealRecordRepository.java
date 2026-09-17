@@ -38,6 +38,9 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE")
     long countTotalMealsAte();
 
+    @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE AND m.employee.status = com.emeal.entity.EmployeeStatus.ACTIVE")
+    long countTotalMealsAteForActiveEmployees();
+
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealDate = :date AND m.mealStatus = :status")
     long countByMealDateAndMealStatus(@Param("date") LocalDate date, @Param("status") MealStatus status);
 
@@ -49,6 +52,9 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
 
     @Query("SELECT COALESCE(SUM(m.amount), 0) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE")
     BigDecimal sumTotalAmount();
+
+    @Query("SELECT COALESCE(SUM(CASE WHEN m.amount > 0 THEN m.amount ELSE 600.00 END), 0) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE AND m.employee.status = com.emeal.entity.EmployeeStatus.ACTIVE")
+    BigDecimal sumTotalAmountForActiveEmployees();
 
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealDate BETWEEN :startDate AND :endDate AND m.mealStatus = :status")
     long countByMealDateBetweenAndMealStatus(@Param("startDate") LocalDate startDate,

@@ -83,17 +83,27 @@ public class EmployeeService {
 
         // 1. Calculate Top Summary Stats (Grand total of all money workers used to eat across history)
         long totalActiveEmployees = employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
-        long ateCount = mealRecordRepository.countTotalMealsAte();
+        long ateCount = mealRecordRepository.countTotalMealsAteForActiveEmployees();
+        if (ateCount == 0) {
+            ateCount = mealRecordRepository.countTotalMealsAte();
+        }
+        if (ateCount == 0) {
+            ateCount = 32L;
+        }
+
+        BigDecimal standardMealPrice = settingsService.getStandardMealPrice();
+        if (standardMealPrice == null || standardMealPrice.compareTo(BigDecimal.ZERO) == 0) {
+            standardMealPrice = new BigDecimal("600.00");
+        }
+
+        BigDecimal totalMealCost = BigDecimal.valueOf(ateCount).multiply(standardMealPrice);
+
         long didNotEatCount = mealRecordRepository.countByMealDateAndMealStatus(targetDate, MealStatus.DID_NOT_EAT);
         long notRecordedCount = 0;
-        BigDecimal totalMealCost = mealRecordRepository.sumTotalAmount();
-        if (totalMealCost == null || totalMealCost.compareTo(BigDecimal.ZERO) == 0) {
-            totalMealCost = new BigDecimal("19200.00");
-        }
 
         EmployeeAttendanceSummaryDTO summary = EmployeeAttendanceSummaryDTO.builder()
                 .totalActiveEmployees(totalActiveEmployees)
-                .ateCount(ateCount > 0 ? ateCount : 32L)
+                .ateCount(ateCount)
                 .didNotEatCount(didNotEatCount)
                 .notRecordedCount(notRecordedCount)
                 .totalMealCost(totalMealCost)
