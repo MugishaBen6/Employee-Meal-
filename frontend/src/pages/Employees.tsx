@@ -581,7 +581,7 @@ export const Employees: React.FC = () => {
                       }
                     }}
                     onChange={handleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
                   />
                 </th>
                 <th className="px-4 py-3.5">Names</th>
@@ -622,7 +622,7 @@ export const Employees: React.FC = () => {
                         aria-label={`Select ${emp.fullName}`}
                         checked={selectedIds.has(emp.id)}
                         onChange={() => handleToggleSelect(emp.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
                       />
                     </td>
                     {/* Names */}
