@@ -188,6 +188,63 @@ function parseCsv(text: string): string[][] {
 }
 
 /**
+ * Parses month string to month number (1-12).
+ */
+function parseMonthName(str: string): number {
+  if (!str) return 0;
+  const s = str.trim().toLowerCase();
+  if (s.startsWith('jan')) return 1;
+  if (s.startsWith('feb')) return 2;
+  if (s.startsWith('mar')) return 3;
+  if (s.startsWith('apr')) return 4;
+  if (s.startsWith('may')) return 5;
+  if (s.startsWith('jun')) return 6;
+  if (s.startsWith('jul')) return 7;
+  if (s.startsWith('aug')) return 8;
+  if (s.startsWith('sep')) return 9;
+  if (s.startsWith('oct')) return 10;
+  if (s.startsWith('nov')) return 11;
+  if (s.startsWith('dec')) return 12;
+  return 0;
+}
+
+/**
+ * Parses a date header string (e.g., "22nd aug", "23-08-2026", "2026-08-22").
+ */
+function parseClientDateHeader(text: string, defaultYear: number = new Date().getFullYear()): string | null {
+  if (!text) return null;
+  const t = text.trim().toLowerCase();
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(t)) {
+    return t;
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = t.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (dmyMatch) {
+    const d = String(parseInt(dmyMatch[1], 10)).padStart(2, '0');
+    const m = String(parseInt(dmyMatch[2], 10)).padStart(2, '0');
+    let y = parseInt(dmyMatch[3], 10);
+    if (y < 100) y += 2000;
+    return `${y}-${m}-${d}`;
+  }
+
+  // e.g. "22nd aug", "22nd august", "22 aug", "22-aug"
+  const dayMonthMatch = t.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s-_/]*([a-z]+)?$/);
+  if (dayMonthMatch) {
+    const day = parseInt(dayMonthMatch[1], 10);
+    let month = dayMonthMatch[2] ? parseMonthName(dayMonthMatch[2]) : new Date().getMonth() + 1;
+    if (month === 0) month = new Date().getMonth() + 1;
+    const d = String(day).padStart(2, '0');
+    const m = String(month).padStart(2, '0');
+    return `${defaultYear}-${m}-${d}`;
+  }
+
+  return null;
+}
+
+/**
  * Validates 2D raw data matrix and produces ExcelImportPreviewResponse.
  */
 function buildPreviewFromRows(matrix: string[][]): ExcelImportPreviewResponse {
@@ -195,7 +252,90 @@ function buildPreviewFromRows(matrix: string[][]): ExcelImportPreviewResponse {
     throw new Error('The uploaded file is empty.');
   }
 
-  // Header matching
+  // Check for Matrix Multi-Date Format across top rows
+  let matrixHeaderRowIdx = -1;
+  let nameColIdx = -1;
+  const dateCols: { colIdx: number; dateStr: string }[] = [];
+
+  for (let r = 0; r < Math.min(4, matrix.length); r++) {
+    const row = matrix[r];
+    const foundDates: { colIdx: number; dateStr: string }[] = [];
+    let foundName = -1;
+
+    row.forEach((cellVal, cIdx) => {
+      const clean = cellVal.trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (clean.includes('name') || clean === 'employee' || clean === 'nom' || clean === 'amazina') {
+        foundName = cIdx;
+      } else if (!clean.includes('total') && !clean.includes('amountpaid')) {
+        const parsedDate = parseClientDateHeader(cellVal);
+        if (parsedDate) {
+          foundDates.push({ colIdx: cIdx, dateStr: parsedDate });
+        }
+      }
+    });
+
+    if (foundDates.length > 0) {
+      matrixHeaderRowIdx = r;
+      nameColIdx = foundName >= 0 ? foundName : 0;
+      dateCols.push(...foundDates);
+      break;
+    }
+  }
+
+  // If Matrix Format Detected:
+  if (dateCols.length > 0 && matrixHeaderRowIdx >= 0) {
+    const previewRows: ExcelEmployeeRow[] = [];
+    let validCount = 0;
+    let seq = 1;
+
+    for (let r = matrixHeaderRowIdx + 1; r < matrix.length; r++) {
+      const row = matrix[r];
+      const empName = (row[nameColIdx] || '').trim();
+      if (!empName) continue;
+      const lower = empName.toLowerCase();
+      if (lower.startsWith('total') || lower.startsWith('summary')) continue; // Skip total row
+
+      for (const { colIdx, dateStr } of dateCols) {
+        const cellVal = (row[colIdx] || '').trim();
+        const numClean = cellVal.replace(/[^0-9.]/g, '');
+        let amount = 0;
+        let mealStatus = 'Not Ate';
+
+        if (numClean && !isNaN(parseFloat(numClean))) {
+          const parsed = parseFloat(numClean);
+          if (parsed > 0) {
+            amount = parsed;
+            mealStatus = 'Ate';
+          }
+        }
+
+        previewRows.push({
+          rowNumber: seq++,
+          employeeName: empName,
+          telephone: '',
+          position: 'Worker',
+          mealDate: dateStr,
+          mealStatus,
+          amountUsed: amount,
+          status: 'VALID',
+          valid: true,
+          duplicate: false,
+        });
+        validCount++;
+      }
+    }
+
+    return {
+      totalRows: previewRows.length,
+      validRows: validCount,
+      invalidRows: 0,
+      duplicateRows: 0,
+      rows: previewRows,
+      summaryMessage: `Extracted ${previewRows.length} daily meal records across ${dateCols.length} dates.`,
+    };
+  }
+
+  // Fallback to Standard Single-Date Format:
   const headerRow = matrix[0];
   const colMap = new Map<string, number>();
 
@@ -209,7 +349,6 @@ function buildPreviewFromRows(matrix: string[][]): ExcelImportPreviewResponse {
   });
 
   if (!colMap.has('name') || !colMap.has('phone')) {
-    // If standard headers not found, fallback to positional order (0: name, 1: phone, 2: pos, 3: status, 4: amount)
     colMap.set('name', 0);
     colMap.set('phone', 1);
     colMap.set('position', 2);

@@ -482,9 +482,7 @@ export const Employees: React.FC = () => {
           <table className="w-full text-left text-sm text-slate-700 min-w-[640px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
-                <th className="px-4 py-3.5">Employee ID</th>
-                <th className="px-4 py-3.5">Employee Name</th>
-                <th className="px-4 py-3.5">Telephone</th>
+                <th className="px-4 py-3.5">Names</th>
                 <th className="px-4 py-3.5">Position</th>
                 <th className="px-4 py-3.5 text-center">Meal Status</th>
                 <th className="px-4 py-3.5 text-right">Amount Used</th>
@@ -495,14 +493,14 @@ export const Employees: React.FC = () => {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={7} className="px-4 py-4">
+                    <td colSpan={5} className="px-4 py-4">
                       <Skeleton className="h-4 w-full" />
                     </td>
                   </tr>
                 ))
               ) : attendanceList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={5} className="px-4 py-12 text-center text-slate-400 text-sm">
                     <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                     No employees found matching the filter criteria.
                   </td>
@@ -510,23 +508,13 @@ export const Employees: React.FC = () => {
               ) : (
                 attendanceList.map((emp) => (
                   <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Employee ID */}
-                    <td className="px-4 py-3.5 font-mono font-bold text-indigo-700">
-                      {emp.employeeCode}
-                    </td>
-
-                    {/* Employee Name */}
+                    {/* Names */}
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-900">{emp.fullName}</div>
                     </td>
 
-                    {/* Telephone */}
-                    <td className="px-4 py-3.5 text-slate-600 font-mono text-xs">
-                      {emp.telephone || '—'}
-                    </td>
-
                     {/* Position */}
-                    <td className="px-4 py-3.5 text-slate-600 text-xs">
+                    <td className="px-4 py-3.5 text-slate-600 text-xs font-medium">
                       {emp.position || '—'}
                     </td>
 

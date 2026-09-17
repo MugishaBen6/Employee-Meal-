@@ -134,10 +134,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     try {
       let data: ExcelImportPreviewResponse | null = null;
       try {
-        data = await parseExcelOrCsvClient(selectedFile);
-      } catch (clientErr) {
-        console.warn('Client parsing error, attempting server parsing:', clientErr);
+        // Try server-side POI parser first for precise date and employee matching
         data = await employeeApi.previewExcelImport(selectedFile);
+      } catch (serverErr) {
+        console.warn('Server parsing error, attempting client parsing fallback:', serverErr);
+        data = await parseExcelOrCsvClient(selectedFile);
       }
 
       if (!data || !data.rows || data.rows.length === 0) {
@@ -203,85 +204,31 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setErrorMessage(null);
 
     try {
-      let result: ExcelImportResultResponse;
-      try {
-        const rawRes: any = await employeeApi.confirmExcelImport({
-          mealDate,
-          rows: rowsToImport,
-        });
+      const rawRes: any = await employeeApi.confirmExcelImport({
+        mealDate,
+        rows: rowsToImport,
+      });
 
-        const successCount = rawRes.successCount ?? rawRes.importedCount ?? 0;
-        const duplicateCount = rawRes.duplicateCount ?? 0;
-        const invalidCount = rawRes.invalidCount ?? 0;
-        const errorCount = rawRes.errorCount ?? (duplicateCount + invalidCount);
-        const totalProcessed = rawRes.totalProcessed ?? (successCount + errorCount);
+      const successCount = rawRes.mealRecordsCreated ?? rawRes.importedCount ?? rawRes.successCount ?? rowsToImport.length;
+      const employeesProcessed = rawRes.employeesProcessed ?? (new Set(rowsToImport.map(r => r.employeeName))).size;
+      const ateCount = rawRes.ateCount ?? rowsToImport.filter(r => r.mealStatus?.toUpperCase() === 'ATE' || r.mealStatus?.toLowerCase() === 'ate').length;
+      const didNotEatCount = rawRes.didNotEatCount ?? (successCount - ateCount);
 
-        result = {
-          totalProcessed,
-          successCount,
-          errorCount,
-          importedEmployeeIds: rawRes.importedEmployeeIds || [],
-          errorRows: rawRes.errorRows || rawRes.failedRows || [],
-          message: rawRes.message || `Import completed: ${successCount} employee(s) created successfully!`,
-        };
-      } catch (backendErr: any) {
-        console.warn('Bulk endpoint failed, falling back to reliable batch creation:', backendErr);
-
-        let currentEmployees: any[] = [];
-        try {
-          const empRes = await employeeApi.getEmployees({ size: 200 });
-          currentEmployees = empRes?.content || [];
-        } catch (_) {}
-
-        let maxCodeNum = 0;
-        currentEmployees.forEach((e) => {
-          const match = (e.employeeCode || '').match(/(\d+)/);
-          if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxCodeNum) maxCodeNum = num;
-          }
-        });
-
-        let successCount = 0;
-        let errorCount = 0;
-        const failedRows: ExcelEmployeeRow[] = [];
-        const importedIds: number[] = [];
-
-        for (let i = 0; i < rowsToImport.length; i++) {
-          const row = rowsToImport[i];
-          maxCodeNum++;
-          const generatedCode = `EMP${String(maxCodeNum).padStart(3, '0')}`;
-          try {
-            const isAte = row.mealStatus?.toUpperCase() === 'ATE';
-            const res = await employeeApi.create({
-              employeeCode: generatedCode,
-              employeeName: row.employeeName,
-              phone: row.telephone,
-              position: row.position,
-              mealStatus: isAte ? 'ATE' : 'DID_NOT_EAT',
-              amount: isAte ? (row.amountUsed ?? 1500) : 0,
-              mealDate,
-            });
-            successCount++;
-            if (res && res.id) importedIds.push(res.id);
-          } catch (rowErr: any) {
-            errorCount++;
-            failedRows.push({
-              ...row,
-              errorReason: rowErr.response?.data?.message || rowErr.message || 'Creation error',
-            });
-          }
-        }
-
-        result = {
-          totalProcessed: rowsToImport.length,
-          successCount,
-          errorCount,
-          importedEmployeeIds: importedIds,
-          errorRows: failedRows,
-          message: `Import completed: ${successCount} employee(s) created successfully!`,
-        };
-      }
+      const result: ExcelImportResultResponse = {
+        totalProcessed: rowsToImport.length,
+        successCount,
+        importedCount: successCount,
+        employeesProcessed,
+        mealRecordsCreated: successCount,
+        ateCount,
+        didNotEatCount,
+        duplicateCount: rawRes.duplicateCount ?? 0,
+        invalidCount: rawRes.invalidCount ?? 0,
+        errorCount: rawRes.errorCount ?? 0,
+        importedEmployeeIds: rawRes.importedEmployeeIds || [],
+        errorRows: rawRes.errorRows || rawRes.failedRows || [],
+        message: rawRes.message || `Import Completed: ${employeesProcessed} employee(s) processed, ${successCount} meal record(s) created (${ateCount} ATE, ${didNotEatCount} DID NOT EAT).`,
+      };
 
       setImportResult(result);
       setStep('result');
@@ -668,6 +615,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             </div>
 
             {/* Interactive Preview Table */}
+            {/* Interactive Preview Table */}
             <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
               <div className="max-h-72 overflow-y-auto overflow-x-auto touch-scroll">
                 <table className="w-full text-left text-xs text-slate-700 divide-y divide-slate-200">
@@ -686,11 +634,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                       </th>
                       <th className="p-2.5 w-12">#</th>
                       <th className="p-2.5 min-w-[140px]">Employee Name</th>
-                      <th className="p-2.5 min-w-[110px]">Telephone</th>
                       <th className="p-2.5 min-w-[100px]">Position</th>
-                      <th className="p-2.5 min-w-[90px]">Meal Status</th>
-                      <th className="p-2.5 min-w-[90px]">Amount</th>
-                      <th className="p-2.5 min-w-[150px]">Validation Status</th>
+                      <th className="p-2.5 min-w-[100px]">Date</th>
+                      <th className="p-2.5 min-w-[100px]">Meal Status</th>
+                      <th className="p-2.5 min-w-[90px]">Amount Used</th>
+                      <th className="p-2.5 min-w-[120px]">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
@@ -740,26 +688,24 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                                 <span className="text-rose-400 italic">Missing</span>
                               )}
                             </td>
-                            <td className="p-2.5 font-mono text-slate-600">
-                              {row.telephone || (
-                                <span className="text-rose-400 italic">Missing</span>
-                              )}
-                            </td>
                             <td className="p-2.5 text-slate-600">
-                              {row.position || 'Employee'}
+                              {row.position || 'Worker'}
+                            </td>
+                            <td className="p-2.5 font-mono text-slate-600 text-[11px]">
+                              {row.mealDate || '—'}
                             </td>
                             <td className="p-2.5">
                               {row.mealStatus?.toUpperCase() === 'ATE' ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                                   ATE
                                 </span>
-                              ) : row.mealStatus?.toUpperCase() === 'DID_NOT_EAT' ? (
+                              ) : row.mealStatus?.toUpperCase() === 'DID_NOT_EAT' || row.mealStatus?.toLowerCase() === 'not ate' ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
                                   DID NOT EAT
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
-                                  {row.mealStatus || 'NONE'}
+                                  {row.mealStatus || 'DID NOT EAT'}
                                 </span>
                               )}
                             </td>
@@ -783,18 +729,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                                         {row.errorReason}
                                       </span>
                                     </div>
-                                  ) : row.errorMessages && row.errorMessages.length > 0 ? (
-                                    row.errorMessages.map((msg, i) => (
-                                      <div
-                                        key={i}
-                                        className="flex items-center gap-1 text-[11px] text-rose-600"
-                                      >
-                                        <XCircle className="w-3 h-3 shrink-0" />
-                                        <span className="truncate max-w-[200px]" title={msg}>
-                                          {msg}
-                                        </span>
-                                      </div>
-                                    ))
                                   ) : (
                                     <div className="flex items-center gap-1 text-[11px] text-rose-600">
                                       <XCircle className="w-3 h-3 shrink-0" />
@@ -857,7 +791,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                     </>
                   ) : (
                     <>
-                      Import {selectedRowIndices.size} Valid Employee(s)
+                      Import {selectedRowIndices.size} Meal Record(s)
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
@@ -876,10 +810,10 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">
-                Importing Employees & Attendance...
+                Importing Daily Meal Records...
               </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                Generating unique sequential employee codes, creating database records, and recording meal attendance.
+                Processing daily meal records, mapping employee positions, and saving attendance data.
               </p>
             </div>
           </div>
@@ -890,19 +824,19 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
           <div className="space-y-4 animate-fadeIn">
             <div
               className={`p-6 border rounded-2xl text-center space-y-3 ${
-                importResult.successCount > 0
+                (importResult.successCount ?? 0) > 0 || (importResult.mealRecordsCreated ?? 0) > 0
                   ? 'bg-slate-50 border-slate-200/80'
                   : 'bg-rose-50/50 border-rose-200'
               }`}
             >
               <div
                 className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto shadow-xs ${
-                  importResult.successCount > 0
+                  (importResult.successCount ?? 0) > 0 || (importResult.mealRecordsCreated ?? 0) > 0
                     ? 'bg-emerald-100 text-emerald-600'
                     : 'bg-rose-100 text-rose-600'
                 }`}
               >
-                {importResult.successCount > 0 ? (
+                {(importResult.successCount ?? 0) > 0 || (importResult.mealRecordsCreated ?? 0) > 0 ? (
                   <CheckCircle2 className="w-8 h-8" />
                 ) : (
                   <XCircle className="w-8 h-8" />
@@ -910,8 +844,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {importResult.successCount > 0
-                    ? 'Import Process Completed!'
+                  {(importResult.successCount ?? 0) > 0 || (importResult.mealRecordsCreated ?? 0) > 0
+                    ? 'Import Completed!'
                     : 'Import Failed — No Records Saved'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -919,30 +853,38 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </p>
               </div>
 
-              {/* Stat Counters */}
-              <div className="grid grid-cols-3 gap-3 max-w-md mx-auto pt-2">
+              {/* Exact Stat Counters */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto pt-2">
                 <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Processed
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Staff Processed
                   </span>
-                  <span className="text-lg font-bold text-slate-800">
-                    {importResult.totalProcessed}
+                  <span className="text-xl font-bold text-slate-900">
+                    {importResult.employeesProcessed ?? importResult.totalProcessed}
+                  </span>
+                </div>
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">
+                    Records Created
+                  </span>
+                  <span className="text-xl font-bold text-indigo-700">
+                    {importResult.mealRecordsCreated ?? importResult.importedCount ?? importResult.successCount}
                   </span>
                 </div>
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
-                    Successful
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                    ATE Records
                   </span>
-                  <span className="text-lg font-bold text-emerald-700">
-                    {importResult.successCount}
+                  <span className="text-xl font-bold text-emerald-700">
+                    {importResult.ateCount ?? 0}
                   </span>
                 </div>
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
-                    Failed / Skipped
+                  <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">
+                    DID NOT EAT
                   </span>
-                  <span className="text-lg font-bold text-rose-700">
-                    {importResult.errorCount}
+                  <span className="text-xl font-bold text-rose-700">
+                    {importResult.didNotEatCount ?? 0}
                   </span>
                 </div>
               </div>
@@ -981,7 +923,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-2">
-              {importResult.successCount === 0 ? (
+              {(importResult.successCount ?? 0) === 0 ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -999,12 +941,12 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 variant="primary"
                 onClick={() => {
                   handleClose();
-                  if (importResult.successCount > 0) {
+                  if ((importResult.successCount ?? 0) > 0) {
                     onSuccess();
                   }
                 }}
               >
-                {importResult.successCount > 0
+                {(importResult.successCount ?? 0) > 0
                   ? 'Done & Refresh Attendance List'
                   : 'Close'}
               </Button>

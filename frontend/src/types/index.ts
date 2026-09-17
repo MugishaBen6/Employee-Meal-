@@ -249,9 +249,11 @@ export interface ApproveUserRequest {
 
 export interface ExcelEmployeeRow {
   rowNumber: number;
+  employeeCode?: string;
   employeeName: string;
   telephone: string;
   position: string;
+  mealDate?: string;
   mealStatus: string;
   amountUsed: number | null;
   status?: string;
@@ -268,7 +270,7 @@ export interface ExcelImportPreviewResponse {
   invalidRows: number;
   duplicateRows: number;
   rows: ExcelEmployeeRow[];
-  summaryMessage: string;
+  summaryMessage?: string;
 }
 
 export interface ExcelImportConfirmRequest {
@@ -277,11 +279,19 @@ export interface ExcelImportConfirmRequest {
 }
 
 export interface ExcelImportResultResponse {
-  totalProcessed: number;
-  successCount: number;
-  errorCount: number;
-  importedEmployeeIds: number[];
-  errorRows: ExcelEmployeeRow[];
+  totalProcessed?: number;
+  successCount?: number;
+  importedCount?: number;
+  employeesProcessed?: number;
+  mealRecordsCreated?: number;
+  ateCount?: number;
+  didNotEatCount?: number;
+  duplicateCount?: number;
+  invalidCount?: number;
+  errorCount?: number;
+  importedEmployeeIds?: number[];
+  errorRows?: ExcelEmployeeRow[];
+  failedRows?: ExcelEmployeeRow[];
   message: string;
 }
 
