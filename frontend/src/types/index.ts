@@ -162,6 +162,9 @@ export interface DashboardStats {
   totalEmployees: number;
   ateToday: number;
   didNotEatToday: number;
+  totalMealsCount?: number;
+  totalExpenseCost?: number;
+  standardMealPrice?: number;
   todayTotalCost: number;
   thisWeekTotalCost: number;
   thisMonthTotalCost: number;

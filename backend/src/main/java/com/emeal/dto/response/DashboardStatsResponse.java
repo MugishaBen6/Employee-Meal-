@@ -8,6 +8,9 @@ public class DashboardStatsResponse {
     private long totalEmployees;
     private long ateToday;
     private long didNotEatToday;
+    private long totalMealsCount;
+    private BigDecimal totalExpenseCost;
+    private BigDecimal standardMealPrice;
     private BigDecimal todayTotalCost;
     private BigDecimal thisWeekTotalCost;
     private BigDecimal thisMonthTotalCost;
@@ -21,10 +24,13 @@ public class DashboardStatsResponse {
     public DashboardStatsResponse() {
     }
 
-    public DashboardStatsResponse(long totalEmployees, long ateToday, long didNotEatToday, BigDecimal todayTotalCost, BigDecimal thisWeekTotalCost, BigDecimal thisMonthTotalCost, BigDecimal averageMealCostToday, String currency, List<ExpenseChartData> dailyExpenditures, List<DepartmentMealStats> departmentStats, List<AuditLogDTO> recentActivities) {
+    public DashboardStatsResponse(long totalEmployees, long ateToday, long didNotEatToday, long totalMealsCount, BigDecimal totalExpenseCost, BigDecimal standardMealPrice, BigDecimal todayTotalCost, BigDecimal thisWeekTotalCost, BigDecimal thisMonthTotalCost, BigDecimal averageMealCostToday, String currency, List<ExpenseChartData> dailyExpenditures, List<DepartmentMealStats> departmentStats, List<AuditLogDTO> recentActivities) {
         this.totalEmployees = totalEmployees;
         this.ateToday = ateToday;
         this.didNotEatToday = didNotEatToday;
+        this.totalMealsCount = totalMealsCount;
+        this.totalExpenseCost = totalExpenseCost;
+        this.standardMealPrice = standardMealPrice;
         this.todayTotalCost = todayTotalCost;
         this.thisWeekTotalCost = thisWeekTotalCost;
         this.thisMonthTotalCost = thisMonthTotalCost;
@@ -47,6 +53,15 @@ public class DashboardStatsResponse {
 
     public long getDidNotEatToday() { return didNotEatToday; }
     public void setDidNotEatToday(long didNotEatToday) { this.didNotEatToday = didNotEatToday; }
+
+    public long getTotalMealsCount() { return totalMealsCount; }
+    public void setTotalMealsCount(long totalMealsCount) { this.totalMealsCount = totalMealsCount; }
+
+    public BigDecimal getTotalExpenseCost() { return totalExpenseCost; }
+    public void setTotalExpenseCost(BigDecimal totalExpenseCost) { this.totalExpenseCost = totalExpenseCost; }
+
+    public BigDecimal getStandardMealPrice() { return standardMealPrice; }
+    public void setStandardMealPrice(BigDecimal standardMealPrice) { this.standardMealPrice = standardMealPrice; }
 
     public BigDecimal getTodayTotalCost() { return todayTotalCost; }
     public void setTodayTotalCost(BigDecimal todayTotalCost) { this.todayTotalCost = todayTotalCost; }
@@ -76,6 +91,9 @@ public class DashboardStatsResponse {
         private long totalEmployees;
         private long ateToday;
         private long didNotEatToday;
+        private long totalMealsCount;
+        private BigDecimal totalExpenseCost;
+        private BigDecimal standardMealPrice;
         private BigDecimal todayTotalCost;
         private BigDecimal thisWeekTotalCost;
         private BigDecimal thisMonthTotalCost;
@@ -90,6 +108,9 @@ public class DashboardStatsResponse {
         public DashboardStatsResponseBuilder totalEmployees(long totalEmployees) { this.totalEmployees = totalEmployees; return this; }
         public DashboardStatsResponseBuilder ateToday(long ateToday) { this.ateToday = ateToday; return this; }
         public DashboardStatsResponseBuilder didNotEatToday(long didNotEatToday) { this.didNotEatToday = didNotEatToday; return this; }
+        public DashboardStatsResponseBuilder totalMealsCount(long totalMealsCount) { this.totalMealsCount = totalMealsCount; return this; }
+        public DashboardStatsResponseBuilder totalExpenseCost(BigDecimal totalExpenseCost) { this.totalExpenseCost = totalExpenseCost; return this; }
+        public DashboardStatsResponseBuilder standardMealPrice(BigDecimal standardMealPrice) { this.standardMealPrice = standardMealPrice; return this; }
         public DashboardStatsResponseBuilder todayTotalCost(BigDecimal todayTotalCost) { this.todayTotalCost = todayTotalCost; return this; }
         public DashboardStatsResponseBuilder thisWeekTotalCost(BigDecimal thisWeekTotalCost) { this.thisWeekTotalCost = thisWeekTotalCost; return this; }
         public DashboardStatsResponseBuilder thisMonthTotalCost(BigDecimal thisMonthTotalCost) { this.thisMonthTotalCost = thisMonthTotalCost; return this; }
@@ -100,7 +121,7 @@ public class DashboardStatsResponse {
         public DashboardStatsResponseBuilder recentActivities(List<AuditLogDTO> recentActivities) { this.recentActivities = recentActivities; return this; }
 
         public DashboardStatsResponse build() {
-            return new DashboardStatsResponse(totalEmployees, ateToday, didNotEatToday, todayTotalCost, thisWeekTotalCost, thisMonthTotalCost, averageMealCostToday, currency, dailyExpenditures, departmentStats, recentActivities);
+            return new DashboardStatsResponse(totalEmployees, ateToday, didNotEatToday, totalMealsCount, totalExpenseCost, standardMealPrice, todayTotalCost, thisWeekTotalCost, thisMonthTotalCost, averageMealCostToday, currency, dailyExpenditures, departmentStats, recentActivities);
         }
     }
 }

@@ -32,6 +32,12 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
     @Query("SELECT MAX(m.mealDate) FROM MealRecord m")
     LocalDate findLatestMealDate();
 
+    @Query("SELECT MIN(m.mealDate) FROM MealRecord m")
+    LocalDate findEarliestMealDate();
+
+    @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE")
+    long countTotalMealsAte();
+
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealDate = :date AND m.mealStatus = :status")
     long countByMealDateAndMealStatus(@Param("date") LocalDate date, @Param("status") MealStatus status);
 

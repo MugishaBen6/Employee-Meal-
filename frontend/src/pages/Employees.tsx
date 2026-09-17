@@ -374,8 +374,8 @@ export const Employees: React.FC = () => {
         )}
       </div>
 
-      {/* Top Summary Cards (Calculated for Selected Date) */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+      {/* Top Summary Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Active Employees */}
         <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500 bg-white">
           <div className="flex items-center justify-between gap-2">
@@ -389,12 +389,14 @@ export const Employees: React.FC = () => {
           </div>
         </Card>
 
-        {/* Ate */}
+        {/* Meal Status: ATE */}
         <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500 bg-white">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Ate Today</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">{summary.ateCount}</h3>
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Meal Status</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1 flex items-center gap-1.5">
+                ATE
+              </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -402,39 +404,28 @@ export const Employees: React.FC = () => {
           </div>
         </Card>
 
-        {/* Did Not Eat */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500 bg-white">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Did Not Eat</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-rose-600 mt-0.5 sm:mt-1">{summary.didNotEatCount}</h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-              <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Not Recorded */}
+        {/* Standard Meal Rate */}
         <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 bg-white">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Not Recorded</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-amber-600 mt-0.5 sm:mt-1">{summary.notRecordedCount}</h3>
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Standard Rate</p>
+              <h3 className="text-base sm:text-2xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">
+                600 {summary.currency || 'RWF'}
+              </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>
 
         {/* Total Meal Cost */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-600 bg-white col-span-2 sm:col-span-2 lg:col-span-1">
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-600 bg-white">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
-              <h3 className="text-base sm:text-lg font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
-                {summary.totalMealCost.toLocaleString()} {summary.currency}
+              <h3 className="text-base sm:text-2xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
+                {(summary.totalMealCost || (summary.totalActiveEmployees * 600)).toLocaleString()} {summary.currency || 'RWF'}
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
@@ -637,31 +628,15 @@ export const Employees: React.FC = () => {
 
                     {/* Meal Status Badge */}
                     <td className="px-4 py-3.5 text-center">
-                      {emp.mealStatus === 'ATE' ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          ATE
-                        </span>
-                      ) : emp.mealStatus === 'DID_NOT_EAT' ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                          <XCircle className="w-3.5 h-3.5 mr-1" />
-                          DID NOT EAT
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-                          <Clock className="w-3.5 h-3.5 mr-1" />
-                          NOT RECORDED
-                        </span>
-                      )}
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                        ATE
+                      </span>
                     </td>
 
                     {/* Amount Used */}
                     <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900">
-                      {emp.mealStatus === 'ATE'
-                        ? formatCurrency(emp.amount, emp.currency)
-                        : emp.mealStatus === 'DID_NOT_EAT'
-                        ? `0 ${emp.currency}`
-                        : '—'}
+                      {formatCurrency(emp.amount || 600, emp.currency || 'RWF')}
                     </td>
 
                     {/* Actions */}

@@ -72,9 +72,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 6 Top Cards Skeletons */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        {/* 4 Top Cards Skeletons */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-2xl" />
           ))}
         </div>
@@ -117,9 +117,39 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Top Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-        {/* Total Active Employees */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Total All-Time Meal Cost */}
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-600 bg-white">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
+              <h3 className="text-base sm:text-2xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
+                {formatCurrency(stats.totalExpenseCost ?? (stats.thisMonthTotalCost || 19200), stats.currency)}
+              </h3>
+            </div>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Total Meals Recorded */}
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500 bg-white">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meals Served</p>
+              <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">
+                {stats.totalMealsCount ?? stats.ateToday} <span className="text-xs font-normal text-slate-500">Meals</span>
+              </h3>
+            </div>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Total Active Staff */}
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500 bg-white">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Staff</p>
@@ -131,67 +161,17 @@ export const Dashboard: React.FC = () => {
           </div>
         </Card>
 
-        {/* Ate Today */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500">
+        {/* Standard Meal Rate */}
+        <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 bg-white">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Ate Today</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">{stats.ateToday}</h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Did Not Eat */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Did Not Eat</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-rose-600 mt-0.5 sm:mt-1">{stats.didNotEatToday}</h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-              <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Today's Cost */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-500">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Today's Cost</p>
-              <h3 className="text-sm sm:text-lg font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">{formatCurrency(stats.todayTotalCost, stats.currency)}</h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* This Week */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">This Week</p>
-              <h3 className="text-sm sm:text-lg font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">{formatCurrency(stats.thisWeekTotalCost, stats.currency)}</h3>
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Standard Meal Rate</p>
+              <h3 className="text-base sm:text-2xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">
+                {formatCurrency(stats.standardMealPrice || 600, stats.currency)}
+              </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* This Month */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-purple-500">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">This Month</p>
-              <h3 className="text-sm sm:text-lg font-bold text-purple-700 mt-0.5 sm:mt-1 truncate">{formatCurrency(stats.thisMonthTotalCost, stats.currency)}</h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </Card>

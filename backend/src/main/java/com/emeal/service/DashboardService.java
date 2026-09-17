@@ -60,6 +60,9 @@ public class DashboardService {
         BigDecimal todayTotalCost = mealRecordRepository.sumAmountByMealDate(activeDate);
         BigDecimal thisWeekTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, activeDate);
         BigDecimal thisMonthTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, activeDate);
+        BigDecimal totalExpenseCost = mealRecordRepository.sumTotalAmount();
+        long totalMealsCount = mealRecordRepository.countTotalMealsAte();
+        BigDecimal standardMealPrice = settingsService.getStandardMealPrice();
 
         BigDecimal averageMealCostToday = (ateToday > 0)
                 ? todayTotalCost.divide(BigDecimal.valueOf(ateToday), 2, RoundingMode.HALF_UP)
@@ -80,6 +83,9 @@ public class DashboardService {
                 .totalEmployees(totalActiveEmployees)
                 .ateToday(ateToday)
                 .didNotEatToday(didNotEatToday)
+                .totalMealsCount(totalMealsCount)
+                .totalExpenseCost(totalExpenseCost != null ? totalExpenseCost : BigDecimal.ZERO)
+                .standardMealPrice(standardMealPrice != null ? standardMealPrice : new BigDecimal("600.00"))
                 .todayTotalCost(todayTotalCost)
                 .thisWeekTotalCost(thisWeekTotalCost)
                 .thisMonthTotalCost(thisMonthTotalCost)
