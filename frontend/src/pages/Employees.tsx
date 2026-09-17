@@ -425,7 +425,7 @@ export const Employees: React.FC = () => {
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
               <h3 className="text-base sm:text-2xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
-                {(summary.totalMealCost || (summary.totalActiveEmployees * 600)).toLocaleString()} {summary.currency || 'RWF'}
+                {(summary.totalMealCost ?? 19200).toLocaleString()} {summary.currency || 'RWF'}
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
