@@ -112,6 +112,13 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success("Employee deactivated successfully"));
     }
 
+    @PostMapping("/bulk-delete")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    public ResponseEntity<ApiResponse<Void>> bulkDeleteEmployees(@RequestBody List<Long> ids) {
+        employeeService.bulkDeleteEmployees(ids);
+        return ResponseEntity.ok(ApiResponse.success("Selected employees deleted successfully"));
+    }
+
     // ==========================================
     // EXCEL IMPORT ENDPOINTS
     // ==========================================

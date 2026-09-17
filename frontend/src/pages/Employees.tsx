@@ -35,6 +35,8 @@ import {
   UploadCloud,
   Download,
   FileSpreadsheet,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const Employees: React.FC = () => {
@@ -87,6 +89,11 @@ export const Employees: React.FC = () => {
   const [mealHistory, setMealHistory] = useState<MealRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Multi-Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -256,9 +263,55 @@ export const Employees: React.FC = () => {
     }
   };
 
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === attendanceList.length && attendanceList.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(attendanceList.map((emp) => emp.id)));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      await employeeApi.bulkDelete(Array.from(selectedIds));
+      setToast({
+        message: `Successfully deleted ${selectedIds.size} selected employee(s)!`,
+        type: 'success',
+      });
+      setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
+      fetchAttendance();
+    } catch (err: any) {
+      setToast({
+        message: err.response?.data?.message || 'Failed to delete selected employees',
+        type: 'error',
+      });
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const formatCurrency = (val: number | null | undefined, curr: string) => {
     if (val === null || val === undefined) return '—';
-    return `${val.toLocaleString()} ${curr}`;
+    return `${val.toLocaleString()} ${curr || 'RWF'}`;
   };
 
   return (
@@ -478,10 +531,59 @@ export const Employees: React.FC = () => {
 
       {/* Main Employee Attendance Table */}
       <Card className="p-0 overflow-hidden">
+        {/* Bulk Selection Action Toolbar */}
+        {selectedIds.size > 0 && (
+          <div className="bg-indigo-50/90 border-b border-indigo-100 px-4 py-3 flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex items-center justify-center min-w-[22px] h-5.5 px-2 rounded-full text-xs font-bold bg-indigo-600 text-white">
+                {selectedIds.size}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-indigo-950">
+                {selectedIds.size === 1 ? '1 employee selected' : `${selectedIds.size} employees selected`}
+              </span>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline ml-1 cursor-pointer"
+              >
+                Clear Selection
+              </button>
+            </div>
+            {hasRole('ADMIN', 'HR') && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setIsBulkDeleteModalOpen(true)}
+                  className="flex items-center gap-1.5 shadow-xs"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Selected ({selectedIds.size})</span>
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="overflow-x-auto touch-scroll">
           <table className="w-full text-left text-sm text-slate-700 min-w-[640px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
+                <th className="w-12 px-3.5 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all employees on this page"
+                    checked={attendanceList.length > 0 && selectedIds.size === attendanceList.length}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate = selectedIds.size > 0 && selectedIds.size < attendanceList.length;
+                      }
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
                 <th className="px-4 py-3.5">Names</th>
                 <th className="px-4 py-3.5">Position</th>
                 <th className="px-4 py-3.5 text-center">Meal Status</th>
@@ -493,21 +595,36 @@ export const Employees: React.FC = () => {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={5} className="px-4 py-4">
+                    <td colSpan={6} className="px-4 py-4">
                       <Skeleton className="h-4 w-full" />
                     </td>
                   </tr>
                 ))
               ) : attendanceList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
                     <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                     No employees found matching the filter criteria.
                   </td>
                 </tr>
               ) : (
                 attendanceList.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr
+                    key={emp.id}
+                    className={`hover:bg-slate-50/80 transition-colors ${
+                      selectedIds.has(emp.id) ? 'bg-indigo-50/40' : ''
+                    }`}
+                  >
+                    {/* Selection Checkbox */}
+                    <td className="w-12 px-3.5 py-3.5 text-center">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${emp.fullName}`}
+                        checked={selectedIds.has(emp.id)}
+                        onChange={() => handleToggleSelect(emp.id)}
+                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </td>
                     {/* Names */}
                     <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-900">{emp.fullName}</div>
@@ -834,6 +951,68 @@ export const Employees: React.FC = () => {
               ))}
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Modal: Bulk Delete Confirmation */}
+      <Modal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => !bulkDeleting && setIsBulkDeleteModalOpen(false)}
+        title="Delete Selected Employees"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-900 text-sm">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">
+                Are you sure you want to delete {selectedIds.size} selected employee{selectedIds.size > 1 ? 's' : ''}?
+              </p>
+              <p className="text-xs text-rose-700 mt-1">
+                This will permanently remove the selected employee profiles and all their associated meal records from the system. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+              Selected Employees ({selectedIds.size}):
+            </p>
+            <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 divide-y divide-slate-100 bg-slate-50/50">
+              {attendanceList
+                .filter((emp) => selectedIds.has(emp.id))
+                .map((emp) => (
+                  <div key={emp.id} className="py-2 px-2 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-bold text-slate-900">{emp.fullName}</span>
+                      <span className="text-slate-400 ml-2">({emp.employeeCode})</span>
+                    </div>
+                    <span className="text-slate-500 font-medium">{emp.position || 'Worker'}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-3 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBulkDeleteModalOpen(false)}
+              disabled={bulkDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleConfirmBulkDelete}
+              isLoading={bulkDeleting}
+              className="flex items-center justify-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Confirm & Delete {selectedIds.size} Staff</span>
+            </Button>
+          </div>
         </div>
       </Modal>
 

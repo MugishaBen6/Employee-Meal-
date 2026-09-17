@@ -55,6 +55,11 @@ export const employeeApi = {
     return res.data;
   },
 
+  bulkDelete: async (ids: number[]) => {
+    const res = await axiosClient.post<ApiResponse<void>>('/employees/bulk-delete', ids);
+    return res.data;
+  },
+
   downloadTemplate: async () => {
     const response = await axiosClient.get('/employees/import/template', {
       responseType: 'blob',

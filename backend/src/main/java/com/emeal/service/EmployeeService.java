@@ -350,6 +350,28 @@ public class EmployeeService {
                 "Deactivated employee " + employee.getEmployeeCode() + " (" + employee.getFullName() + ")");
     }
 
+    @Transactional
+    public void bulkDeleteEmployees(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        int count = 0;
+        for (Long id : ids) {
+            if (id == null) continue;
+            Optional<Employee> empOpt = employeeRepository.findById(id);
+            if (empOpt.isPresent()) {
+                Employee emp = empOpt.get();
+                List<MealRecord> records = mealRecordRepository.findByEmployeeIdOrderByMealDateDesc(id);
+                if (!records.isEmpty()) {
+                    mealRecordRepository.deleteAll(records);
+                }
+                employeeRepository.delete(emp);
+                count++;
+            }
+        }
+
+        auditLogService.logAction("BULK_DELETE_EMPLOYEES", "EMPLOYEE", "BULK",
+                "Deleted " + count + " employees and their associated meal records");
+    }
+
     private String generateNextEmployeeCode() {
         List<String> codes = employeeRepository.findAllEmployeeCodes();
         int maxSeq = 0;
