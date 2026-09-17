@@ -29,7 +29,8 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
 
     List<MealRecord> findByEmployeeIdOrderByMealDateDesc(Long employeeId);
 
-    List<MealRecord> findByMealDateAndEmployeeIdIn(LocalDate mealDate, java.util.Collection<Long> employeeIds);
+    @Query("SELECT MAX(m.mealDate) FROM MealRecord m")
+    LocalDate findLatestMealDate();
 
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealDate = :date AND m.mealStatus = :status")
     long countByMealDateAndMealStatus(@Param("date") LocalDate date, @Param("status") MealStatus status);

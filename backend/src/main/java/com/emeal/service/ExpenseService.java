@@ -30,15 +30,18 @@ public class ExpenseService {
     @Transactional(readOnly = true)
     public Map<String, Object> getExpenseSummary() {
         LocalDate today = LocalDate.now();
-        LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate startOfMonth = today.with(TemporalAdjusters.firstDayOfMonth());
+        LocalDate latestDate = mealRecordRepository.findLatestMealDate();
+        LocalDate activeDate = (latestDate != null) ? latestDate : today;
 
-        BigDecimal todayExpense = mealRecordRepository.sumAmountByMealDate(today);
-        BigDecimal weeklyExpense = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, today);
-        BigDecimal monthlyExpense = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, today);
+        LocalDate startOfWeek = activeDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate startOfMonth = activeDate.with(TemporalAdjusters.firstDayOfMonth());
+
+        BigDecimal todayExpense = mealRecordRepository.sumAmountByMealDate(activeDate);
+        BigDecimal weeklyExpense = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, activeDate);
+        BigDecimal monthlyExpense = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, activeDate);
         BigDecimal totalExpense = mealRecordRepository.sumTotalAmount();
 
-        List<ExpenseChartData> last30Days = dashboardService.getExpendituresBetween(today.minusDays(29), today);
+        List<ExpenseChartData> last30Days = dashboardService.getExpendituresBetween(activeDate.minusDays(29), activeDate);
 
         Map<String, Object> res = new HashMap<>();
         res.put("todayExpense", todayExpense);

@@ -40,16 +40,26 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStatistics() {
         LocalDate today = LocalDate.now();
-        LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate startOfMonth = today.with(TemporalAdjusters.firstDayOfMonth());
+        LocalDate latestDate = mealRecordRepository.findLatestMealDate();
+        LocalDate activeDate = today;
+
+        long todayAte = mealRecordRepository.countByMealDateAndMealStatus(today, MealStatus.ATE);
+        long todayDidNotEat = mealRecordRepository.countByMealDateAndMealStatus(today, MealStatus.DID_NOT_EAT);
+
+        if (todayAte == 0 && todayDidNotEat == 0 && latestDate != null) {
+            activeDate = latestDate;
+        }
+
+        LocalDate startOfWeek = activeDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate startOfMonth = activeDate.with(TemporalAdjusters.firstDayOfMonth());
 
         long totalActiveEmployees = employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
-        long ateToday = mealRecordRepository.countByMealDateAndMealStatus(today, MealStatus.ATE);
-        long didNotEatToday = mealRecordRepository.countByMealDateAndMealStatus(today, MealStatus.DID_NOT_EAT);
+        long ateToday = mealRecordRepository.countByMealDateAndMealStatus(activeDate, MealStatus.ATE);
+        long didNotEatToday = mealRecordRepository.countByMealDateAndMealStatus(activeDate, MealStatus.DID_NOT_EAT);
 
-        BigDecimal todayTotalCost = mealRecordRepository.sumAmountByMealDate(today);
-        BigDecimal thisWeekTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, today);
-        BigDecimal thisMonthTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, today);
+        BigDecimal todayTotalCost = mealRecordRepository.sumAmountByMealDate(activeDate);
+        BigDecimal thisWeekTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, activeDate);
+        BigDecimal thisMonthTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, activeDate);
 
         BigDecimal averageMealCostToday = (ateToday > 0)
                 ? todayTotalCost.divide(BigDecimal.valueOf(ateToday), 2, RoundingMode.HALF_UP)
@@ -57,11 +67,11 @@ public class DashboardService {
 
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
-        // 7 Days Chart Data
-        List<ExpenseChartData> dailyExpenditures = getExpendituresBetween(today.minusDays(6), today);
+        // 10 Days Chart Data covering the active range
+        List<ExpenseChartData> dailyExpenditures = getExpendituresBetween(activeDate.minusDays(9), activeDate);
 
-        // Department breakdown
-        List<DepartmentMealStats> departmentStats = getDepartmentStatsForDate(today);
+        // Department breakdown for activeDate
+        List<DepartmentMealStats> departmentStats = getDepartmentStatsForDate(activeDate);
 
         // Recent activities
         List<AuditLogDTO> recentActivities = auditLogService.getRecentActivities(5);
