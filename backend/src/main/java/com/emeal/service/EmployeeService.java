@@ -106,11 +106,11 @@ public class EmployeeService {
         List<Employee> filteredEmployees = allMatchingEmployees.stream()
                 .filter(e -> {
                     if (status != null && e.getStatus() != status) return false;
-                    if (cleanDept != null && !e.getDepartment().toLowerCase().equalsIgnoreCase(cleanDept)) return false;
+                    if (cleanDept != null && (e.getDepartment() == null || !e.getDepartment().trim().equalsIgnoreCase(cleanDept))) return false;
                     if (cleanQuery != null) {
-                        boolean matchCode = e.getEmployeeCode().toLowerCase().contains(cleanQuery);
-                        boolean matchFirst = e.getFirstName().toLowerCase().contains(cleanQuery);
-                        boolean matchLast = e.getLastName().toLowerCase().contains(cleanQuery);
+                        boolean matchCode = e.getEmployeeCode() != null && e.getEmployeeCode().toLowerCase().contains(cleanQuery);
+                        boolean matchFirst = e.getFirstName() != null && e.getFirstName().toLowerCase().contains(cleanQuery);
+                        boolean matchLast = e.getLastName() != null && e.getLastName().toLowerCase().contains(cleanQuery);
                         boolean matchPhone = e.getPhone() != null && e.getPhone().toLowerCase().contains(cleanQuery);
                         return matchCode || matchFirst || matchLast || matchPhone;
                     }
@@ -120,8 +120,14 @@ public class EmployeeService {
 
         // 3. Match each employee with their meal record on the selected date
         List<MealRecord> dayRecords = mealRecordRepository.findByMealDate(targetDate);
-        Map<Long, MealRecord> recordMap = dayRecords.stream()
-                .collect(Collectors.toMap(r -> r.getEmployee().getId(), r -> r, (r1, r2) -> r1));
+        Map<Long, MealRecord> recordMap = new HashMap<>();
+        if (dayRecords != null) {
+            for (MealRecord mr : dayRecords) {
+                if (mr != null && mr.getEmployee() != null && mr.getEmployee().getId() != null) {
+                    recordMap.put(mr.getEmployee().getId(), mr);
+                }
+            }
+        }
 
         List<EmployeeAttendanceDTO> attendanceList = new ArrayList<>();
 

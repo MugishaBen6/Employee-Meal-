@@ -841,8 +841,12 @@ export const Employees: React.FC = () => {
       <ExcelImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onSuccess={() => {
-          fetchAttendance();
+        onSuccess={(importedDate) => {
+          if (importedDate && importedDate !== selectedDate) {
+            setSelectedDate(importedDate);
+          } else {
+            fetchAttendance();
+          }
           setToast({ message: 'Excel import completed and attendance refreshed!', type: 'success' });
         }}
         defaultDate={selectedDate}

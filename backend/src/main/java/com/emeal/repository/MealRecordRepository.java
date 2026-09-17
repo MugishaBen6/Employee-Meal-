@@ -20,7 +20,8 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
 
     boolean existsByEmployeeIdAndMealDate(Long employeeId, LocalDate mealDate);
 
-    List<MealRecord> findByMealDate(LocalDate mealDate);
+    @Query("SELECT m FROM MealRecord m JOIN FETCH m.employee WHERE m.mealDate = :mealDate")
+    List<MealRecord> findByMealDate(@Param("mealDate") LocalDate mealDate);
 
     List<MealRecord> findByMealDateOrderByEmployeeEmployeeCodeAsc(LocalDate mealDate);
 

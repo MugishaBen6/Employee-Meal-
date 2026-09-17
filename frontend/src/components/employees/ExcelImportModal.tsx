@@ -29,7 +29,7 @@ import {
 interface ExcelImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (importedDate?: string) => void;
   defaultDate?: string;
 }
 
@@ -940,9 +940,10 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 type="button"
                 variant="primary"
                 onClick={() => {
+                  const primaryDate = previewData?.rows?.find((r) => r.mealDate)?.mealDate || mealDate;
                   handleClose();
                   if ((importResult.successCount ?? 0) > 0) {
-                    onSuccess();
+                    onSuccess(primaryDate);
                   }
                 }}
               >

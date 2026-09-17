@@ -197,4 +197,91 @@ public class EmployeeAttendanceTest {
 
         assertThrows(DuplicateResourceException.class, () -> employeeService.createEmployee(duplicateReq));
     }
+
+    @Test
+    void testAbelMultiDateAttendanceLookup() {
+        // 1. Create Abel (Worker)
+        CreateEmployeeRequest abelReq = new CreateEmployeeRequest();
+        abelReq.setEmployeeCode("EMP010");
+        abelReq.setFirstName("Abel");
+        abelReq.setLastName("");
+        abelReq.setDepartment("Operations");
+        abelReq.setPosition("Worker");
+        abelReq.setPhone("+250788998877");
+        EmployeeDTO abel = employeeService.createEmployee(abelReq);
+
+        // 2. Create history records for Abel across multiple dates
+        LocalDate date29 = LocalDate.of(2026, 8, 29);
+        LocalDate date30 = LocalDate.of(2026, 8, 30);
+        LocalDate date31 = LocalDate.of(2026, 8, 31);
+        LocalDate dateNoRecord = LocalDate.of(2026, 9, 1);
+
+        // 2026-08-29: ATE 600 RWF
+        RecordMealRequest meal29 = new RecordMealRequest();
+        meal29.setEmployeeId(abel.getId());
+        meal29.setMealDate(date29);
+        meal29.setMealStatus(MealStatus.ATE);
+        meal29.setAmount(new BigDecimal("600.00"));
+        mealRecordService.recordMeal(meal29);
+
+        // 2026-08-30: DID_NOT_EAT 0 RWF
+        RecordMealRequest meal30 = new RecordMealRequest();
+        meal30.setEmployeeId(abel.getId());
+        meal30.setMealDate(date30);
+        meal30.setMealStatus(MealStatus.DID_NOT_EAT);
+        meal30.setAmount(BigDecimal.ZERO);
+        mealRecordService.recordMeal(meal30);
+
+        // 2026-08-31: DID_NOT_EAT 0 RWF
+        RecordMealRequest meal31 = new RecordMealRequest();
+        meal31.setEmployeeId(abel.getId());
+        meal31.setMealDate(date31);
+        meal31.setMealStatus(MealStatus.DID_NOT_EAT);
+        meal31.setAmount(BigDecimal.ZERO);
+        mealRecordService.recordMeal(meal31);
+
+        // TEST 1: When selected date is 2026-08-29 -> MUST show ATE, 600 RWF
+        EmployeeAttendancePageResponse resp29 = employeeService.getEmployeeAttendancePage(
+                date29, null, null, null, null, 0, 10);
+        EmployeeAttendanceDTO row29 = resp29.getEmployees().getContent().stream()
+                .filter(e -> e.getId().equals(abel.getId()))
+                .findFirst().orElseThrow();
+        assertEquals("Abel", row29.getFullName());
+        assertEquals("Worker", row29.getPosition());
+        assertEquals("ATE", row29.getMealStatus());
+        assertEquals(0, new BigDecimal("600.00").compareTo(row29.getAmount()));
+
+        // TEST 2: When selected date is 2026-08-30 -> MUST show DID_NOT_EAT, 0 RWF
+        EmployeeAttendancePageResponse resp30 = employeeService.getEmployeeAttendancePage(
+                date30, null, null, null, null, 0, 10);
+        EmployeeAttendanceDTO row30 = resp30.getEmployees().getContent().stream()
+                .filter(e -> e.getId().equals(abel.getId()))
+                .findFirst().orElseThrow();
+        assertEquals("Abel", row30.getFullName());
+        assertEquals("Worker", row30.getPosition());
+        assertEquals("DID_NOT_EAT", row30.getMealStatus());
+        assertEquals(0, BigDecimal.ZERO.compareTo(row30.getAmount()));
+
+        // TEST 3: When selected date is 2026-08-31 -> MUST show DID_NOT_EAT, 0 RWF
+        EmployeeAttendancePageResponse resp31 = employeeService.getEmployeeAttendancePage(
+                date31, null, null, null, null, 0, 10);
+        EmployeeAttendanceDTO row31 = resp31.getEmployees().getContent().stream()
+                .filter(e -> e.getId().equals(abel.getId()))
+                .findFirst().orElseThrow();
+        assertEquals("Abel", row31.getFullName());
+        assertEquals("Worker", row31.getPosition());
+        assertEquals("DID_NOT_EAT", row31.getMealStatus());
+        assertEquals(0, BigDecimal.ZERO.compareTo(row31.getAmount()));
+
+        // TEST 4: When selected date has NO record (2026-09-01) -> MUST show NOT_RECORDED
+        EmployeeAttendancePageResponse respNoRecord = employeeService.getEmployeeAttendancePage(
+                dateNoRecord, null, null, null, null, 0, 10);
+        EmployeeAttendanceDTO rowNoRecord = respNoRecord.getEmployees().getContent().stream()
+                .filter(e -> e.getId().equals(abel.getId()))
+                .findFirst().orElseThrow();
+        assertEquals("Abel", rowNoRecord.getFullName());
+        assertEquals("Worker", rowNoRecord.getPosition());
+        assertEquals("NOT_RECORDED", rowNoRecord.getMealStatus());
+        assertNull(rowNoRecord.getAmount());
+    }
 }
