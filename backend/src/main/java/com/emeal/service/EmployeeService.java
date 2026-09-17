@@ -298,7 +298,7 @@ public class EmployeeService {
             }
 
             BigDecimal mealAmount = (request.getMealStatus() == MealStatus.ATE)
-                    ? (request.getAmount() != null ? request.getAmount() : new BigDecimal("1500.00"))
+                    ? (request.getAmount() != null ? request.getAmount() : new BigDecimal("600.00"))
                     : BigDecimal.ZERO;
 
             RecordMealRequest mealReq = new RecordMealRequest();

@@ -105,7 +105,7 @@ export const Employees: React.FC = () => {
     phone: '',
     position: '',
     mealStatus: 'ATE',
-    amount: 1500,
+    amount: 600,
   });
 
   // Edit Employee Form State

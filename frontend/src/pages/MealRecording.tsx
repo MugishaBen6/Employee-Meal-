@@ -23,7 +23,7 @@ export const MealRecording: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [mealStatus, setMealStatus] = useState<MealStatus>('ATE');
-  const [amount, setAmount] = useState<number>(1500);
+  const [amount, setAmount] = useState<number>(600);
 
   const [quickCheck, setQuickCheck] = useState<QuickMealCheckResponse | null>(null);
   const [loadingCheck, setLoadingCheck] = useState(false);
