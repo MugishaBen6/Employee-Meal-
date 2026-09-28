@@ -248,9 +248,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setImportResult(result);
       setStep('result');
     } catch (err: any) {
-      setErrorMessage(
-        err.response?.data?.message || err.message || 'Import failed. Please check your file.'
-      );
+      let msg = err.response?.data?.message || err.message || 'Import failed. Please check your file.';
+      if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
+        msg = 'The server was waking up from sleep or the request timed out. Please click "Import Excel Directly" again now that the server is active.';
+      }
+      setErrorMessage(msg);
       setStep('upload');
     } finally {
       setLoading(false);
