@@ -132,6 +132,15 @@ public class EmployeeController {
                 .body(excelBytes);
     }
 
+    @PostMapping(value = "/import/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<ExcelImportResultResponse>> uploadAndImportExcel(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "mealDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate mealDate) {
+        ExcelImportResultResponse result = excelImportService.importExcelDirect(file, mealDate);
+        return ResponseEntity.ok(ApiResponse.success(result.getMessage(), result));
+    }
+
     @PostMapping(value = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGING_DIRECTOR', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse<ExcelImportPreviewResponse>> previewExcel(

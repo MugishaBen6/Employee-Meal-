@@ -628,15 +628,31 @@ export const Employees: React.FC = () => {
 
                     {/* Meal Status Badge */}
                     <td className="px-4 py-3.5 text-center">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                        ATE
-                      </span>
+                      {emp.mealStatus === 'ATE' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                          ATE
+                        </span>
+                      ) : emp.mealStatus === 'DID_NOT_EAT' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          <XCircle className="w-3.5 h-3.5 mr-1" />
+                          DID NOT EAT
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                          NOT RECORDED
+                        </span>
+                      )}
                     </td>
 
                     {/* Amount Used */}
                     <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900">
-                      {formatCurrency(emp.amount || 600, emp.currency || 'RWF')}
+                      {emp.mealStatus === 'ATE'
+                        ? formatCurrency(emp.amount !== null && emp.amount !== undefined ? emp.amount : 600, emp.currency || 'RWF')
+                        : emp.mealStatus === 'DID_NOT_EAT'
+                        ? formatCurrency(0, emp.currency || 'RWF')
+                        : '—'}
                     </td>
 
                     {/* Actions */}

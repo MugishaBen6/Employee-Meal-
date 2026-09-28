@@ -52,6 +52,27 @@ public class ExcelImportService {
     }
 
     /**
+     * Internal data structure representing a single parsed employee daily meal record.
+     */
+    public static class ParsedMealItem {
+        public String employeeName;
+        public LocalDate mealDate;
+        public MealStatus mealStatus;
+        public BigDecimal amount;
+        public String sheetName;
+        public int rowNumber;
+
+        public ParsedMealItem(String employeeName, LocalDate mealDate, MealStatus mealStatus, BigDecimal amount, String sheetName, int rowNumber) {
+            this.employeeName = employeeName;
+            this.mealDate = mealDate;
+            this.mealStatus = mealStatus;
+            this.amount = amount;
+            this.sheetName = sheetName;
+            this.rowNumber = rowNumber;
+        }
+    }
+
+    /**
      * Generates a clean, professional Excel template with standard columns and sample instructions.
      */
     public byte[] generateTemplate() {
@@ -91,9 +112,9 @@ public class ExcelImportService {
 
             // Example instructional rows
             String[][] sampleData = {
-                {"John Doe", "0781234567", "Worker", "Ate", "1500"},
+                {"John Doe", "0781234567", "Worker", "Ate", "600"},
                 {"Jane Smith", "0791234567", "Manager", "Not Ate", "0"},
-                {"Eric Mugisha", "0787654321", "Driver", "Ate", "1500"}
+                {"Eric Mugisha", "0787654321", "Driver", "Ate", "600"}
             };
 
             for (int r = 0; r < sampleData.length; r++) {
@@ -118,19 +139,51 @@ public class ExcelImportService {
     }
 
     /**
-     * Reads Excel, validates column headers, detects Matrix (multi-date) or Standard format,
-     * validates data, and returns a comprehensive preview.
+     * Direct 1-step Excel upload and batch import.
+     * Parses all relevant schedule sheets (September, August), matches employees, and bulk upserts meal records.
+     */
+    @Transactional
+    public ExcelImportResultResponse importExcelDirect(MultipartFile file, LocalDate defaultDate) {
+        validateFile(file);
+
+        LocalDate targetDate = (defaultDate != null) ? defaultDate : LocalDate.now();
+        int targetYear = targetDate.getYear();
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String recordedBy = (auth != null && auth.getName() != null) ? auth.getName() : "ADMIN";
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
+            if (workbook.getNumberOfSheets() == 0) {
+                throw new BadRequestException("The uploaded Excel workbook contains no sheets.");
+            }
+
+            DataFormatter formatter = new DataFormatter();
+            List<ParsedMealItem> parsedItems = parseAllMatrixSheets(workbook, targetYear, formatter);
+
+            if (parsedItems.isEmpty()) {
+                // Fallback to standard 5-column format on first sheet
+                Sheet firstSheet = workbook.getSheetAt(0);
+                ExcelImportPreviewResponse stdPreview = parseStandardFormat(firstSheet, targetDate, formatter);
+                return processStandardRows(stdPreview.getRows(), targetDate, recordedBy);
+            }
+
+            return processAndSaveMealData(parsedItems, recordedBy);
+
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to process Excel import directly", e);
+            throw new BadRequestException("Failed to process Excel file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Reads Excel across all sheets, detects Matrix or Standard format, validates data,
+     * and returns a fast, non-blocking preview response with representative sample rows.
      */
     @Transactional(readOnly = true)
     public ExcelImportPreviewResponse previewExcel(MultipartFile file, LocalDate defaultDate) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("Please select an Excel file to upload.");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || (!originalFilename.toLowerCase().endsWith(".xlsx") && !originalFilename.toLowerCase().endsWith(".xls"))) {
-            throw new BadRequestException("Invalid file format. Please upload an Excel file (.xlsx or .xls).");
-        }
+        validateFile(file);
 
         LocalDate targetDate = (defaultDate != null) ? defaultDate : LocalDate.now();
         int targetYear = targetDate.getYear();
@@ -140,31 +193,101 @@ public class ExcelImportService {
                 throw new BadRequestException("The uploaded Excel workbook contains no sheets.");
             }
 
-            // Pick active or first sheet
-            Sheet sheet = workbook.getSheetAt(0);
-            for (int s = 0; s < workbook.getNumberOfSheets(); s++) {
-                Sheet curSheet = workbook.getSheetAt(s);
-                if (curSheet.getPhysicalNumberOfRows() > 0) {
-                    sheet = curSheet;
-                    break;
-                }
+            DataFormatter formatter = new DataFormatter();
+            List<ParsedMealItem> parsedItems = parseAllMatrixSheets(workbook, targetYear, formatter);
+
+            if (!parsedItems.isEmpty()) {
+                return buildMatrixPreviewResponse(parsedItems);
             }
 
-            if (sheet.getPhysicalNumberOfRows() < 1) {
-                throw new BadRequestException("The Excel sheet is empty.");
+            // Fallback: standard 5-column sheet
+            Sheet firstSheet = workbook.getSheetAt(0);
+            return parseStandardFormat(firstSheet, targetDate, formatter);
+
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to parse Excel file preview", e);
+            throw new BadRequestException("Failed to read Excel file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Fast bulk confirmation of imported rows.
+     */
+    @Transactional
+    public ExcelImportResultResponse confirmImport(ExcelImportConfirmRequest request) {
+        if (request == null || request.getRows() == null || request.getRows().isEmpty()) {
+            throw new BadRequestException("No employee rows provided for import.");
+        }
+
+        LocalDate fallbackDate = (request.getMealDate() != null) ? request.getMealDate() : LocalDate.now();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String recordedBy = (auth != null && auth.getName() != null) ? auth.getName() : "ADMIN";
+
+        List<ExcelEmployeeRowDTO> validRows = request.getRows().stream()
+                .filter(r -> "VALID".equalsIgnoreCase(r.getStatus()) || r.getStatus() == null)
+                .toList();
+
+        List<ExcelEmployeeRowDTO> failedRows = request.getRows().stream()
+                .filter(r -> "INVALID".equalsIgnoreCase(r.getStatus()))
+                .toList();
+
+        int duplicateCount = (int) request.getRows().stream().filter(r -> "DUPLICATE".equalsIgnoreCase(r.getStatus())).count();
+        int invalidCount = failedRows.size();
+
+        if (validRows.isEmpty()) {
+            return ExcelImportResultResponse.builder()
+                    .importedCount(0)
+                    .employeesProcessed(0)
+                    .mealRecordsCreated(0)
+                    .ateCount(0)
+                    .didNotEatCount(0)
+                    .duplicateCount(duplicateCount)
+                    .invalidCount(invalidCount)
+                    .message("No valid rows to import.")
+                    .failedRows(failedRows)
+                    .build();
+        }
+
+        List<ParsedMealItem> items = new ArrayList<>(validRows.size());
+        for (ExcelEmployeeRowDTO r : validRows) {
+            LocalDate date = fallbackDate;
+            if (r.getMealDate() != null && !r.getMealDate().isBlank()) {
+                try {
+                    date = LocalDate.parse(r.getMealDate().trim());
+                } catch (Exception ignored) {}
+            }
+            boolean ate = "Ate".equalsIgnoreCase(r.getMealStatus()) || "ATE".equalsIgnoreCase(r.getMealStatus());
+            MealStatus status = ate ? MealStatus.ATE : MealStatus.DID_NOT_EAT;
+            BigDecimal amount = ate ? (r.getAmountUsed() != null ? r.getAmountUsed() : new BigDecimal("600.00")) : BigDecimal.ZERO;
+            items.add(new ParsedMealItem(r.getEmployeeName(), date, status, amount, "Import", r.getRowNumber()));
+        }
+
+        return processAndSaveMealData(items, recordedBy);
+    }
+
+    /**
+     * Parses all sheets in workbook, dynamically detecting date columns.
+     * Skips non-date sheets (like Sheet2) and TOTAL/summary rows and columns.
+     */
+    private List<ParsedMealItem> parseAllMatrixSheets(Workbook workbook, int defaultYear, DataFormatter formatter) {
+        List<ParsedMealItem> allItems = new ArrayList<>();
+        int numSheets = workbook.getNumberOfSheets();
+
+        for (int s = 0; s < numSheets; s++) {
+            Sheet sheet = workbook.getSheetAt(s);
+            if (sheet == null || sheet.getPhysicalNumberOfRows() < 2) {
+                continue;
             }
 
             String sheetName = sheet.getSheetName();
-            DataFormatter formatter = new DataFormatter();
-
-            // Check if sheet is Matrix (Multi-Date) format or Standard (Single-Date) format
-            // Scan top 4 rows for header detection
+            // Check top 5 rows for header row containing date columns
             int nameCol = -1;
             int headerRowIndex = -1;
             Map<Integer, LocalDate> dateColsMap = new TreeMap<>();
-            boolean isMatrixFormat = false;
 
-            for (int r = 0; r < Math.min(5, sheet.getPhysicalNumberOfRows() + 2); r++) {
+            for (int r = 0; r < Math.min(6, sheet.getPhysicalNumberOfRows() + 2); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
 
@@ -177,11 +300,11 @@ public class ExcelImportService {
                     String val = formatter.formatCellValue(cell).trim();
                     if (val.isEmpty()) continue;
 
-                    String valLower = val.toLowerCase().replaceAll("[^a-z]", "");
+                    String valLower = val.toLowerCase().replaceAll("[^a-z0-9]", "");
                     if (valLower.contains("name") || valLower.equals("employee") || valLower.equals("nom") || valLower.equals("amazina")) {
                         foundNameCol = c;
-                    } else if (!valLower.contains("total") && !valLower.contains("amountpaid")) {
-                        LocalDate parsedDate = parseDateHeader(cell, val, targetYear, sheetName);
+                    } else if (!valLower.contains("total") && !valLower.contains("amountpaid") && !valLower.contains("summary")) {
+                        LocalDate parsedDate = parseDateHeader(cell, val, defaultYear, sheetName);
                         if (parsedDate != null) {
                             potentialDates.put(c, parsedDate);
                         }
@@ -189,7 +312,6 @@ public class ExcelImportService {
                 }
 
                 if (!potentialDates.isEmpty()) {
-                    isMatrixFormat = true;
                     dateColsMap = potentialDates;
                     headerRowIndex = r;
                     nameCol = (foundNameCol >= 0) ? foundNameCol : 0;
@@ -197,154 +319,302 @@ public class ExcelImportService {
                 }
             }
 
-            // If matrix format detected:
-            if (isMatrixFormat && !dateColsMap.isEmpty()) {
-                return parseMatrixFormat(sheet, headerRowIndex, nameCol, dateColsMap, formatter);
+            // If no date columns found in this sheet (e.g., Sheet2 which only has Names), ignore sheet
+            if (dateColsMap.isEmpty() || headerRowIndex < 0) {
+                continue;
             }
 
-            // Otherwise, fallback to standard single-date format
-            return parseStandardFormat(sheet, targetDate, formatter);
+            // Parse data rows in this sheet
+            int lastRowNum = sheet.getLastRowNum();
+            for (int r = headerRowIndex + 1; r <= lastRowNum; r++) {
+                Row row = sheet.getRow(r);
+                if (row == null || isRowEmpty(row, formatter)) {
+                    continue;
+                }
 
-        } catch (BadRequestException e) {
-            throw e;
-        } catch (Exception e) {
-            logger.error("Failed to parse Excel file", e);
-            throw new BadRequestException("Failed to read Excel file: " + e.getMessage());
+                String rawName = getCellString(row, nameCol, formatter);
+                if (rawName.isBlank()) {
+                    continue;
+                }
+
+                String cleanLower = rawName.trim().toLowerCase();
+                // Skip TOTAL row and summary rows
+                if (cleanLower.startsWith("total") || cleanLower.startsWith("summary") || cleanLower.equals("names")) {
+                    continue;
+                }
+
+                // Process each date column
+                for (Map.Entry<Integer, LocalDate> entry : dateColsMap.entrySet()) {
+                    int colIdx = entry.getKey();
+                    LocalDate date = entry.getValue();
+
+                    Cell cell = row.getCell(colIdx);
+                    BigDecimal amount = BigDecimal.ZERO;
+                    MealStatus status = MealStatus.DID_NOT_EAT;
+
+                    if (cell != null) {
+                        if (cell.getCellType() == CellType.NUMERIC) {
+                            double val = cell.getNumericCellValue();
+                            if (val > 0) {
+                                amount = BigDecimal.valueOf(val);
+                                status = MealStatus.ATE;
+                            }
+                        } else if (cell.getCellType() == CellType.STRING) {
+                            String strVal = formatter.formatCellValue(cell).trim();
+                            if (!strVal.isEmpty()) {
+                                String cleanNum = strVal.replaceAll("[^0-9.]", "");
+                                if (!cleanNum.isEmpty()) {
+                                    try {
+                                        double val = Double.parseDouble(cleanNum);
+                                        if (val > 0) {
+                                            amount = BigDecimal.valueOf(val);
+                                            status = MealStatus.ATE;
+                                        }
+                                    } catch (Exception ignored) {}
+                                } else if (strVal.equalsIgnoreCase("ate") || strVal.equalsIgnoreCase("yes") || strVal.equals("1")) {
+                                    amount = new BigDecimal("600.00");
+                                    status = MealStatus.ATE;
+                                }
+                            }
+                        } else if (cell.getCellType() == CellType.FORMULA) {
+                            try {
+                                double val = cell.getNumericCellValue();
+                                if (val > 0) {
+                                    amount = BigDecimal.valueOf(val);
+                                    status = MealStatus.ATE;
+                                }
+                            } catch (Exception e) {
+                                String strVal = formatter.formatCellValue(cell).trim().replaceAll("[^0-9.]", "");
+                                if (!strVal.isEmpty()) {
+                                    try {
+                                        double val = Double.parseDouble(strVal);
+                                        if (val > 0) {
+                                            amount = BigDecimal.valueOf(val);
+                                            status = MealStatus.ATE;
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                        }
+                    }
+
+                    // Empty cell -> DID_NOT_EAT, amount = 0
+                    allItems.add(new ParsedMealItem(rawName.trim(), date, status, amount, sheetName, r + 1));
+                }
+            }
         }
+
+        return allItems;
     }
 
     /**
-     * Parses the real multi-date matrix Excel format (Names in Col A, multiple Date columns).
-     * Amount > 0 -> ATE
-     * Empty / 0 -> DID_NOT_EAT
+     * High-speed in-memory employee matching, bulk employee creation, and batch meal record upsert.
      */
-    private ExcelImportPreviewResponse parseMatrixFormat(Sheet sheet,
-                                                          int headerRowIndex,
-                                                          int nameCol,
-                                                          Map<Integer, LocalDate> dateColsMap,
-                                                          DataFormatter formatter) {
-        // Fetch all existing employees for fast name-based matching
+    private ExcelImportResultResponse processAndSaveMealData(List<ParsedMealItem> parsedItems, String recordedBy) {
+        if (parsedItems.isEmpty()) {
+            throw new BadRequestException("No employee meal records could be extracted from the Excel file.");
+        }
+
+        // 1. Fetch all existing employees & build fast lookup
         List<Employee> allEmployees = employeeRepository.findAll();
         Map<String, Employee> employeeLookup = new HashMap<>();
         for (Employee emp : allEmployees) {
-            String fullName = (emp.getFirstName() + " " + emp.getLastName()).trim();
-            employeeLookup.put(normalizeNameKey(fullName), emp);
-            String reverseName = (emp.getLastName() + " " + emp.getFirstName()).trim();
-            employeeLookup.put(normalizeNameKey(reverseName), emp);
-            if (!emp.getFirstName().isBlank()) {
-                employeeLookup.put(normalizeNameKey(emp.getFirstName()), emp);
-            }
-            if (emp.getEmployeeCode() != null) {
-                employeeLookup.put(normalizeNameKey(emp.getEmployeeCode()), emp);
-            }
+            indexEmployee(employeeLookup, emp);
         }
 
-        List<ExcelEmployeeRowDTO> previewRows = new ArrayList<>();
-        int totalProcessedRows = 0;
-        int validRows = 0;
-        int invalidRows = 0;
-        int duplicateRows = 0;
+        // 2. Identify unrecognized employees and bulk create them
+        int nextCodeSeq = getNextEmployeeCodeSequence();
+        List<Employee> newEmployeesToSave = new ArrayList<>();
+        Set<String> processedNewNames = new HashSet<>();
 
-        int lastRowNum = sheet.getLastRowNum();
-        int displaySeq = 1;
+        for (ParsedMealItem item : parsedItems) {
+            String nameKey = normalizeNameKey(item.employeeName);
+            if (!employeeLookup.containsKey(nameKey) && !processedNewNames.contains(nameKey)) {
+                processedNewNames.add(nameKey);
 
-        for (int r = headerRowIndex + 1; r <= lastRowNum; r++) {
-            Row row = sheet.getRow(r);
-            if (row == null || isRowEmpty(row, formatter)) {
-                continue;
-            }
-
-            String rawName = getCellString(row, nameCol, formatter);
-            if (rawName.isBlank()) {
-                continue;
-            }
-
-            String cleanLower = rawName.trim().toLowerCase();
-            if (cleanLower.startsWith("total") || cleanLower.startsWith("summary")) {
-                continue; // Skip total/summary row
-            }
-
-            totalProcessedRows++;
-
-            // Lookup existing employee in DB
-            Employee matchedEmp = employeeLookup.get(normalizeNameKey(rawName));
-            String empCode = matchedEmp != null ? matchedEmp.getEmployeeCode() : null;
-            String position = matchedEmp != null ? matchedEmp.getPosition() : "Worker";
-            String phone = matchedEmp != null ? matchedEmp.getPhone() : "";
-
-            // For each date column, evaluate cell
-            for (Map.Entry<Integer, LocalDate> entry : dateColsMap.entrySet()) {
-                int colIdx = entry.getKey();
-                LocalDate date = entry.getValue();
-
-                Cell cell = row.getCell(colIdx);
-                BigDecimal amount = BigDecimal.ZERO;
-                String mealStatusStr = "DID_NOT_EAT";
-
-                if (cell != null) {
-                    if (cell.getCellType() == CellType.NUMERIC) {
-                        double val = cell.getNumericCellValue();
-                        if (val > 0) {
-                            amount = BigDecimal.valueOf(val);
-                            mealStatusStr = "ATE";
-                        }
-                    } else if (cell.getCellType() == CellType.STRING) {
-                        String strVal = formatter.formatCellValue(cell).trim().replaceAll("[^0-9.]", "");
-                        if (!strVal.isEmpty()) {
-                            try {
-                                double val = Double.parseDouble(strVal);
-                                if (val > 0) {
-                                    amount = BigDecimal.valueOf(val);
-                                    mealStatusStr = "ATE";
-                                }
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                }
-
-                // If empty cell -> DID_NOT_EAT, amount = 0
-                // If amount > 0 -> ATE, amount = parsed amount
-                String status = "VALID";
-                String errorReason = null;
-
-                if (rawName.isBlank()) {
-                    status = "INVALID";
-                    errorReason = "Employee Name is missing.";
-                    invalidRows++;
+                String employeeCode = String.format("EMP%03d", nextCodeSeq++);
+                String fullName = item.employeeName.trim();
+                String firstName;
+                String lastName;
+                int spaceIdx = fullName.indexOf(" ");
+                if (spaceIdx > 0) {
+                    firstName = fullName.substring(0, spaceIdx).trim();
+                    lastName = fullName.substring(spaceIdx + 1).trim();
                 } else {
-                    validRows++;
+                    firstName = fullName;
+                    lastName = "";
                 }
 
-                previewRows.add(ExcelEmployeeRowDTO.builder()
-                        .rowNumber(displaySeq++)
-                        .employeeCode(empCode)
-                        .employeeName(rawName.trim())
-                        .telephone(phone)
-                        .position(position)
-                        .mealDate(date.toString())
-                        .mealStatus("ATE".equalsIgnoreCase(mealStatusStr) ? "Ate" : "Not Ate")
-                        .amountUsed(amount)
-                        .status(status)
-                        .errorReason(errorReason)
-                        .build());
+                String phone = "078" + String.format("%07d", (int)(Math.random() * 10000000));
+                Employee newEmp = Employee.builder()
+                        .employeeCode(employeeCode)
+                        .firstName(firstName)
+                        .lastName(lastName)
+                        .department("General")
+                        .position("Worker")
+                        .phone(phone)
+                        .status(EmployeeStatus.ACTIVE)
+                        .build();
+
+                newEmployeesToSave.add(newEmp);
             }
         }
 
-        if (previewRows.isEmpty()) {
-            throw new BadRequestException("No employee meal records could be extracted from the sheet.");
+        if (!newEmployeesToSave.isEmpty()) {
+            List<Employee> savedNew = employeeRepository.saveAll(newEmployeesToSave);
+            for (Employee emp : savedNew) {
+                indexEmployee(employeeLookup, emp);
+            }
         }
 
-        return ExcelImportPreviewResponse.builder()
-                .totalRows(previewRows.size())
-                .validRows(validRows)
-                .invalidRows(invalidRows)
-                .duplicateRows(duplicateRows)
-                .rows(previewRows)
+        // 3. Collect all unique dates in the parsed data and load existing records in ONE query
+        Set<LocalDate> allDates = parsedItems.stream().map(i -> i.mealDate).collect(Collectors.toSet());
+        List<MealRecord> existingDbRecords = mealRecordRepository.findByMealDateIn(allDates);
+        Map<String, MealRecord> existingMap = new HashMap<>();
+        for (MealRecord mr : existingDbRecords) {
+            if (mr.getEmployee() != null && mr.getEmployee().getId() != null) {
+                String key = mr.getEmployee().getId() + "#" + mr.getMealDate().toString();
+                existingMap.put(key, mr);
+            }
+        }
+
+        // 4. In-memory deduplication & meal record preparation
+        int ateCount = 0;
+        int didNotEatCount = 0;
+        Set<Long> uniqueEmployees = new HashSet<>();
+        Set<String> sheetNames = new TreeSet<>();
+        Map<String, MealRecord> recordsToSaveMap = new LinkedHashMap<>();
+
+        for (ParsedMealItem item : parsedItems) {
+            Employee emp = employeeLookup.get(normalizeNameKey(item.employeeName));
+            if (emp == null) continue;
+
+            uniqueEmployees.add(emp.getId());
+            if (item.sheetName != null) {
+                sheetNames.add(item.sheetName);
+            }
+
+            if (item.mealStatus == MealStatus.ATE) {
+                ateCount++;
+            } else {
+                didNotEatCount++;
+            }
+
+            String key = emp.getId() + "#" + item.mealDate.toString();
+            MealRecord existing = existingMap.get(key);
+            if (existing != null) {
+                existing.setMealStatus(item.mealStatus);
+                existing.setAmount(item.amount);
+                existing.setRecordedBy(recordedBy);
+                recordsToSaveMap.put(key, existing);
+            } else {
+                MealRecord inBatch = recordsToSaveMap.get(key);
+                if (inBatch != null) {
+                    inBatch.setMealStatus(item.mealStatus);
+                    inBatch.setAmount(item.amount);
+                    inBatch.setRecordedBy(recordedBy);
+                } else {
+                    MealRecord newRecord = MealRecord.builder()
+                            .employee(emp)
+                            .mealDate(item.mealDate)
+                            .mealStatus(item.mealStatus)
+                            .amount(item.amount)
+                            .recordedBy(recordedBy)
+                            .build();
+                    recordsToSaveMap.put(key, newRecord);
+                }
+            }
+        }
+
+        // 5. Bulk save all meal records in batch
+        List<MealRecord> recordsToSave = new ArrayList<>(recordsToSaveMap.values());
+        final int batchSize = 1000;
+        for (int i = 0; i < recordsToSave.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, recordsToSave.size());
+            mealRecordRepository.saveAll(recordsToSave.subList(i, end));
+        }
+
+        int employeesCount = uniqueEmployees.size();
+        int recordsCount = recordsToSave.size();
+
+        auditLogService.logAction("EXCEL_EMPLOYEE_IMPORT", "EMPLOYEE", "BULK",
+                "Successfully imported " + recordsCount + " meal records for " + employeesCount + " employees from Excel");
+
+        String sheetSummary = sheetNames.isEmpty() ? "" : " across " + sheetNames.size() + " sheet(s) (" + String.join(", ", sheetNames) + ")";
+        String summaryMsg = String.format("Import Completed: %d employee(s) processed%s, %d meal record(s) created/updated (%d ATE, %d DID NOT EAT).",
+                employeesCount, sheetSummary, recordsCount, ateCount, didNotEatCount);
+
+        return ExcelImportResultResponse.builder()
+                .importedCount(recordsCount)
+                .employeesProcessed(employeesCount)
+                .mealRecordsCreated(recordsCount)
+                .ateCount(ateCount)
+                .didNotEatCount(didNotEatCount)
+                .duplicateCount(0)
+                .invalidCount(0)
+                .message(summaryMsg)
+                .failedRows(Collections.emptyList())
                 .build();
     }
 
     /**
-     * Fallback for standard single-date 5-column format.
+     * Builds preview response with total counts and representative sample rows.
+     */
+    private ExcelImportPreviewResponse buildMatrixPreviewResponse(List<ParsedMealItem> parsedItems) {
+        List<Employee> allEmployees = employeeRepository.findAll();
+        Map<String, Employee> employeeLookup = new HashMap<>();
+        for (Employee emp : allEmployees) {
+            indexEmployee(employeeLookup, emp);
+        }
+
+        int totalCount = parsedItems.size();
+        int validCount = totalCount;
+        int ateCount = 0;
+        int didNotEatCount = 0;
+
+        List<ExcelEmployeeRowDTO> samplePreviewRows = new ArrayList<>();
+        int displaySeq = 1;
+
+        for (ParsedMealItem item : parsedItems) {
+            if (item.mealStatus == MealStatus.ATE) {
+                ateCount++;
+            } else {
+                didNotEatCount++;
+            }
+
+            // Add up to top 100 rows to sample preview
+            if (samplePreviewRows.size() < 100) {
+                Employee matched = employeeLookup.get(normalizeNameKey(item.employeeName));
+                String empCode = matched != null ? matched.getEmployeeCode() : null;
+                String pos = matched != null ? matched.getPosition() : "Worker";
+                String phone = matched != null ? matched.getPhone() : "";
+
+                samplePreviewRows.add(ExcelEmployeeRowDTO.builder()
+                        .rowNumber(displaySeq++)
+                        .employeeCode(empCode)
+                        .employeeName(item.employeeName)
+                        .telephone(phone)
+                        .position(pos)
+                        .mealDate(item.mealDate.toString())
+                        .mealStatus(item.mealStatus == MealStatus.ATE ? "Ate" : "Not Ate")
+                        .amountUsed(item.amount)
+                        .status("VALID")
+                        .errorReason(null)
+                        .build());
+            }
+        }
+
+        return ExcelImportPreviewResponse.builder()
+                .totalRows(totalCount)
+                .validRows(validCount)
+                .invalidRows(0)
+                .duplicateRows(0)
+                .rows(samplePreviewRows)
+                .build();
+    }
+
+    /**
+     * Helper for standard single-date 5-column format.
      */
     private ExcelImportPreviewResponse parseStandardFormat(Sheet sheet, LocalDate targetDate, DataFormatter formatter) {
         BigDecimal standardPrice = settingsService.getStandardMealPrice();
@@ -503,199 +773,42 @@ public class ExcelImportService {
                 .build();
     }
 
-    /**
-     * Bulk inserts/upserts employee records and creates corresponding meal records across dates in a single transaction.
-     */
-    @Transactional
-    public ExcelImportResultResponse confirmImport(ExcelImportConfirmRequest request) {
-        if (request == null || request.getRows() == null || request.getRows().isEmpty()) {
-            throw new BadRequestException("No employee rows provided for import.");
-        }
-
-        LocalDate fallbackDate = (request.getMealDate() != null) ? request.getMealDate() : LocalDate.now();
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String recordedBy = (auth != null && auth.getName() != null) ? auth.getName() : "ADMIN";
-
-        // Filter valid rows only
-        List<ExcelEmployeeRowDTO> validRows = request.getRows().stream()
-                .filter(r -> "VALID".equalsIgnoreCase(r.getStatus()))
-                .toList();
-
-        List<ExcelEmployeeRowDTO> failedRows = request.getRows().stream()
-                .filter(r -> !"VALID".equalsIgnoreCase(r.getStatus()))
-                .toList();
-
-        int duplicateCount = (int) request.getRows().stream().filter(r -> "DUPLICATE".equalsIgnoreCase(r.getStatus())).count();
-        int invalidCount = (int) request.getRows().stream().filter(r -> "INVALID".equalsIgnoreCase(r.getStatus())).count();
-
-        if (validRows.isEmpty()) {
-            return ExcelImportResultResponse.builder()
-                    .importedCount(0)
-                    .employeesProcessed(0)
-                    .mealRecordsCreated(0)
-                    .ateCount(0)
-                    .didNotEatCount(0)
-                    .duplicateCount(duplicateCount)
-                    .invalidCount(invalidCount)
-                    .message("No valid rows to import.")
-                    .failedRows(failedRows)
-                    .build();
-        }
-
-        // 1. Fetch all existing employees & build fast lookup
-        List<Employee> allEmployees = employeeRepository.findAll();
-        Map<String, Employee> employeeLookup = new HashMap<>();
-        for (Employee emp : allEmployees) {
-            String fullName = (emp.getFirstName() + " " + emp.getLastName()).trim();
-            employeeLookup.put(normalizeNameKey(fullName), emp);
-            String reverseName = (emp.getLastName() + " " + emp.getFirstName()).trim();
-            employeeLookup.put(normalizeNameKey(reverseName), emp);
-            if (!emp.getFirstName().isBlank()) {
-                employeeLookup.put(normalizeNameKey(emp.getFirstName()), emp);
-            }
-            if (emp.getEmployeeCode() != null) {
-                employeeLookup.put(normalizeNameKey(emp.getEmployeeCode()), emp);
-            }
-        }
-
-        // 2. Identify and create any missing employees
-        int nextCodeSeq = getNextEmployeeCodeSequence();
-        List<Employee> newEmployeesToSave = new ArrayList<>();
-        Set<String> processedNewNames = new HashSet<>();
-
-        for (ExcelEmployeeRowDTO row : validRows) {
-            String nameKey = normalizeNameKey(row.getEmployeeName());
-            if (!employeeLookup.containsKey(nameKey) && !processedNewNames.contains(nameKey)) {
-                processedNewNames.add(nameKey);
-
-                String employeeCode = String.format("EMP%03d", nextCodeSeq++);
-                while (employeeRepository.existsByEmployeeCode(employeeCode)) {
-                    employeeCode = String.format("EMP%03d", nextCodeSeq++);
+    private ExcelImportResultResponse processStandardRows(List<ExcelEmployeeRowDTO> rows, LocalDate defaultDate, String recordedBy) {
+        List<ParsedMealItem> items = new ArrayList<>();
+        for (ExcelEmployeeRowDTO r : rows) {
+            if ("VALID".equalsIgnoreCase(r.getStatus())) {
+                LocalDate date = defaultDate;
+                if (r.getMealDate() != null) {
+                    try { date = LocalDate.parse(r.getMealDate()); } catch (Exception ignored) {}
                 }
-
-                String fullName = row.getEmployeeName().trim();
-                String firstName;
-                String lastName;
-                int spaceIdx = fullName.indexOf(" ");
-                if (spaceIdx > 0) {
-                    firstName = fullName.substring(0, spaceIdx).trim();
-                    lastName = fullName.substring(spaceIdx + 1).trim();
-                } else {
-                    firstName = fullName;
-                    lastName = "";
-                }
-
-                String phone = (row.getTelephone() != null && !row.getTelephone().isBlank())
-                        ? normalizePhone(row.getTelephone())
-                        : "078" + String.format("%07d", (int)(Math.random() * 10000000));
-
-                String position = (row.getPosition() != null && !row.getPosition().isBlank())
-                        ? row.getPosition().trim()
-                        : "Worker";
-
-                Employee newEmp = Employee.builder()
-                        .employeeCode(employeeCode)
-                        .firstName(firstName)
-                        .lastName(lastName)
-                        .department("General")
-                        .position(position)
-                        .phone(phone)
-                        .status(EmployeeStatus.ACTIVE)
-                        .build();
-
-                newEmployeesToSave.add(newEmp);
+                boolean ate = "Ate".equalsIgnoreCase(r.getMealStatus()) || "ATE".equalsIgnoreCase(r.getMealStatus());
+                items.add(new ParsedMealItem(r.getEmployeeName(), date, ate ? MealStatus.ATE : MealStatus.DID_NOT_EAT,
+                        ate ? (r.getAmountUsed() != null ? r.getAmountUsed() : new BigDecimal("600.00")) : BigDecimal.ZERO,
+                        "Standard", r.getRowNumber()));
             }
         }
+        return processAndSaveMealData(items, recordedBy);
+    }
 
-        if (!newEmployeesToSave.isEmpty()) {
-            List<Employee> savedNew = employeeRepository.saveAll(newEmployeesToSave);
-            for (Employee emp : savedNew) {
-                String fullName = (emp.getFirstName() + " " + emp.getLastName()).trim();
-                employeeLookup.put(normalizeNameKey(fullName), emp);
-                String reverseName = (emp.getLastName() + " " + emp.getFirstName()).trim();
-                employeeLookup.put(normalizeNameKey(reverseName), emp);
-                if (!emp.getFirstName().isBlank()) {
-                    employeeLookup.put(normalizeNameKey(emp.getFirstName()), emp);
-                }
-            }
+    private void indexEmployee(Map<String, Employee> lookup, Employee emp) {
+        String fullName = (emp.getFirstName() + " " + emp.getLastName()).trim();
+        lookup.put(normalizeNameKey(fullName), emp);
+        String reverseName = (emp.getLastName() + " " + emp.getFirstName()).trim();
+        lookup.put(normalizeNameKey(reverseName), emp);
+        if (!emp.getFirstName().isBlank()) {
+            lookup.put(normalizeNameKey(emp.getFirstName()), emp);
         }
-
-        // 3. Process Meal Records for each row (upsert if exists for employee + date)
-        int ateCount = 0;
-        int didNotEatCount = 0;
-        Set<Long> uniqueEmployeesProcessed = new HashSet<>();
-        List<MealRecord> mealRecordsToSave = new ArrayList<>();
-
-        for (ExcelEmployeeRowDTO row : validRows) {
-            Employee emp = employeeLookup.get(normalizeNameKey(row.getEmployeeName()));
-            if (emp == null) continue;
-
-            uniqueEmployeesProcessed.add(emp.getId());
-
-            LocalDate recordDate = fallbackDate;
-            if (row.getMealDate() != null && !row.getMealDate().isBlank()) {
-                try {
-                    recordDate = LocalDate.parse(row.getMealDate().trim());
-                } catch (Exception ignored) {}
-            }
-
-            boolean ate = "Ate".equalsIgnoreCase(row.getMealStatus()) || "ATE".equalsIgnoreCase(row.getMealStatus());
-            MealStatus mStatus = ate ? MealStatus.ATE : MealStatus.DID_NOT_EAT;
-            BigDecimal amount = ate ? (row.getAmountUsed() != null ? row.getAmountUsed() : new BigDecimal("600.00")) : BigDecimal.ZERO;
-
-            if (ate) {
-                ateCount++;
-            } else {
-                didNotEatCount++;
-            }
-
-            // Check if existing record exists for this employee + date
-            Optional<MealRecord> existingOpt = mealRecordRepository.findByEmployeeIdAndMealDate(emp.getId(), recordDate);
-            if (existingOpt.isPresent()) {
-                MealRecord existing = existingOpt.get();
-                existing.setMealStatus(mStatus);
-                existing.setAmount(amount);
-                existing.setRecordedBy(recordedBy);
-                mealRecordsToSave.add(existing);
-            } else {
-                MealRecord mr = MealRecord.builder()
-                        .employee(emp)
-                        .mealDate(recordDate)
-                        .mealStatus(mStatus)
-                        .amount(amount)
-                        .recordedBy(recordedBy)
-                        .build();
-                mealRecordsToSave.add(mr);
-            }
+        if (emp.getEmployeeCode() != null) {
+            lookup.put(normalizeNameKey(emp.getEmployeeCode()), emp);
         }
-
-        mealRecordRepository.saveAll(mealRecordsToSave);
-
-        int employeesCount = uniqueEmployeesProcessed.size();
-        int recordsCount = mealRecordsToSave.size();
-
-        auditLogService.logAction("EXCEL_EMPLOYEE_IMPORT", "EMPLOYEE", "BULK",
-                "Successfully imported " + recordsCount + " meal records for " + employeesCount + " employees from Excel");
-
-        String summaryMsg = String.format("Import Completed: %d employee(s) processed, %d meal record(s) created/updated (%d ATE, %d DID NOT EAT).",
-                employeesCount, recordsCount, ateCount, didNotEatCount);
-
-        return ExcelImportResultResponse.builder()
-                .importedCount(recordsCount)
-                .employeesProcessed(employeesCount)
-                .mealRecordsCreated(recordsCount)
-                .ateCount(ateCount)
-                .didNotEatCount(didNotEatCount)
-                .duplicateCount(duplicateCount)
-                .invalidCount(invalidCount)
-                .message(summaryMsg)
-                .failedRows(failedRows)
-                .build();
+        if (emp.getPhone() != null && !emp.getPhone().isBlank()) {
+            lookup.put(normalizeNameKey(emp.getPhone()), emp);
+        }
     }
 
     /**
      * Helper to parse date headers from various Excel string/numeric formats.
+     * Uses sheet name (e.g. "August", "September") when ambiguous.
      */
     private LocalDate parseDateHeader(Cell cell, String cellText, int defaultYear, String sheetName) {
         if (cell != null && cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
@@ -724,34 +837,39 @@ public class ExcelImportService {
             } catch (Exception ignored) {}
         }
 
-        // Check "22nd aug", "23rd aug", "24th aug", "22 aug", "22nd"
+        // Check "1st sept", "2nd sept", "22nd aug", "23rd aug", "22 aug", "22nd"
         Pattern dayMonthPattern = Pattern.compile("(\\d{1,2})(?:st|nd|rd|th)?(?:[\\s-_/]+([a-z]+))?");
         Matcher m = dayMonthPattern.matcher(text);
         if (m.find()) {
             int day = Integer.parseInt(m.group(1));
-            String monthStr = m.group(2);
-            int month = 0;
-            if (monthStr != null && !monthStr.isBlank()) {
-                month = parseMonth(monthStr);
-            } else if (sheetName != null && !sheetName.isBlank()) {
-                month = parseMonth(sheetName);
+            if (day >= 1 && day <= 31) {
+                String monthStr = m.group(2);
+                int month = 0;
+                if (monthStr != null && !monthStr.isBlank()) {
+                    month = parseMonth(monthStr);
+                } else if (sheetName != null && !sheetName.isBlank()) {
+                    month = parseMonth(sheetName);
+                }
+                if (month == 0 && sheetName != null) {
+                    month = parseMonth(sheetName);
+                }
+                if (month == 0) {
+                    month = LocalDate.now().getMonthValue();
+                }
+                int year = defaultYear > 0 ? defaultYear : LocalDate.now().getYear();
+                try {
+                    return LocalDate.of(year, month, day);
+                } catch (Exception ignored) {}
             }
-            if (month == 0) {
-                month = LocalDate.now().getMonthValue();
-            }
-            int year = defaultYear > 0 ? defaultYear : LocalDate.now().getYear();
-            try {
-                return LocalDate.of(year, month, day);
-            } catch (Exception ignored) {}
         }
 
-        // Check "aug 22", "august 22nd"
+        // Check "aug 22", "august 22nd", "sept 1"
         Pattern monthDayPattern = Pattern.compile("([a-z]+)[\\s-_/]+(\\d{1,2})(?:st|nd|rd|th)?");
         Matcher m2 = monthDayPattern.matcher(text);
         if (m2.find()) {
             int month = parseMonth(m2.group(1));
             int day = Integer.parseInt(m2.group(2));
-            if (month > 0) {
+            if (month > 0 && day >= 1 && day <= 31) {
                 int year = defaultYear > 0 ? defaultYear : LocalDate.now().getYear();
                 try {
                     return LocalDate.of(year, month, day);
@@ -783,6 +901,16 @@ public class ExcelImportService {
     private String normalizeNameKey(String name) {
         if (name == null) return "";
         return name.toLowerCase().replaceAll("[^a-z0-9]", "").trim();
+    }
+
+    private void validateFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Please select an Excel file to upload.");
+        }
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || (!originalFilename.toLowerCase().endsWith(".xlsx") && !originalFilename.toLowerCase().endsWith(".xls"))) {
+            throw new BadRequestException("Invalid file format. Please upload an Excel file (.xlsx or .xls).");
+        }
     }
 
     /**

@@ -67,6 +67,18 @@ export const employeeApi = {
     return response.data;
   },
 
+  uploadAndImportExcel: async (file: File, mealDate?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = mealDate ? { mealDate } : {};
+    const res = await axiosClient.post<ApiResponse<import('../types').ExcelImportResultResponse>>(
+      '/employees/import/upload',
+      formData,
+      { params }
+    );
+    return res.data.data;
+  },
+
   previewExcelImport: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

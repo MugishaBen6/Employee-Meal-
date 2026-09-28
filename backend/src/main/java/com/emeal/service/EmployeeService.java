@@ -81,32 +81,33 @@ public class EmployeeService {
         LocalDate targetDate = (date != null) ? date : LocalDate.now();
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
-        // 1. Calculate Top Summary Stats (Grand total of all money workers used to eat across history)
+        // 1. Calculate Top Summary Stats for the selected date
         long totalActiveEmployees = employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
-        long ateCount = mealRecordRepository.countTotalMealsAteForActiveEmployees();
-        if (ateCount == 0) {
-            ateCount = mealRecordRepository.countTotalMealsAte();
-        }
-        if (ateCount == 0) {
-            ateCount = 32L;
-        }
+        long dayAteCount = mealRecordRepository.countByMealDateAndMealStatus(targetDate, MealStatus.ATE);
+        long dayDidNotEatCount = mealRecordRepository.countByMealDateAndMealStatus(targetDate, MealStatus.DID_NOT_EAT);
 
         BigDecimal standardMealPrice = settingsService.getStandardMealPrice();
         if (standardMealPrice == null || standardMealPrice.compareTo(BigDecimal.ZERO) == 0) {
             standardMealPrice = new BigDecimal("600.00");
         }
 
-        BigDecimal totalMealCost = BigDecimal.valueOf(ateCount).multiply(standardMealPrice);
+        BigDecimal dayMealCost = mealRecordRepository.sumAmountByMealDate(targetDate);
+        if ((dayMealCost == null || dayMealCost.compareTo(BigDecimal.ZERO) == 0) && dayAteCount > 0) {
+            dayMealCost = BigDecimal.valueOf(dayAteCount).multiply(standardMealPrice);
+        } else if (dayMealCost == null) {
+            dayMealCost = BigDecimal.ZERO;
+        }
 
-        long didNotEatCount = mealRecordRepository.countByMealDateAndMealStatus(targetDate, MealStatus.DID_NOT_EAT);
-        long notRecordedCount = 0;
+        long totalMealsAteHistorical = mealRecordRepository.countTotalMealsAteForActiveEmployees();
+        long displayAteCount = (dayAteCount > 0 || dayDidNotEatCount > 0) ? dayAteCount : (totalMealsAteHistorical > 0 ? totalMealsAteHistorical : 0L);
+        BigDecimal displayMealCost = (dayAteCount > 0 || dayDidNotEatCount > 0) ? dayMealCost : BigDecimal.valueOf(displayAteCount).multiply(standardMealPrice);
 
         EmployeeAttendanceSummaryDTO summary = EmployeeAttendanceSummaryDTO.builder()
                 .totalActiveEmployees(totalActiveEmployees)
-                .ateCount(ateCount)
-                .didNotEatCount(didNotEatCount)
-                .notRecordedCount(notRecordedCount)
-                .totalMealCost(totalMealCost)
+                .ateCount(displayAteCount)
+                .didNotEatCount(dayDidNotEatCount)
+                .notRecordedCount(Math.max(0, totalActiveEmployees - (dayAteCount + dayDidNotEatCount)))
+                .totalMealCost(displayMealCost)
                 .currency(currency)
                 .build();
 

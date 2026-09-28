@@ -478,28 +478,151 @@ export async function parseExcelOrCsvClient(file: File): Promise<ExcelImportPrev
     return buildPreviewFromRows(matrix);
   }
 
-  // Try parsing as XLSX
+  // Try parsing as XLSX across all sheets
   const buffer = await file.arrayBuffer();
   try {
     const files = await unzipXlsx(buffer);
     const sharedStringsXml = files.get('xl/sharedStrings.xml') || '';
-    const sheet1Xml =
-      files.get('xl/worksheets/sheet1.xml') ||
-      files.get('xl/worksheets/Sheet1.xml') ||
-      '';
+    const sharedStrings = sharedStringsXml ? parseSharedStrings(sharedStringsXml) : [];
 
-    if (sheet1Xml) {
-      const sharedStrings = sharedStringsXml ? parseSharedStrings(sharedStringsXml) : [];
-      const matrix = parseWorksheet(sheet1Xml, sharedStrings);
-      if (matrix.length > 0) {
-        return buildPreviewFromRows(matrix);
+    // Parse workbook to get sheet names
+    const workbookXml = files.get('xl/workbook.xml') || '';
+    const sheetEntries: { name: string; target: string }[] = [];
+
+    if (workbookXml) {
+      const parser = new DOMParser();
+      const wbDoc = parser.parseFromString(workbookXml, 'application/xml');
+      const sheetEls = wbDoc.getElementsByTagName('sheet');
+      for (let i = 0; i < sheetEls.length; i++) {
+        const sName = sheetEls[i].getAttribute('name') || `Sheet${i + 1}`;
+        const sheetPath = `xl/worksheets/sheet${i + 1}.xml`;
+        sheetEntries.push({ name: sName, target: sheetPath });
       }
+    }
+
+    if (sheetEntries.length === 0) {
+      sheetEntries.push(
+        { name: 'Sheet1', target: 'xl/worksheets/sheet1.xml' },
+        { name: 'Sheet2', target: 'xl/worksheets/sheet2.xml' },
+        { name: 'Sheet3', target: 'xl/worksheets/sheet3.xml' }
+      );
+    }
+
+    const allMatrices: { name: string; matrix: string[][] }[] = [];
+    for (const entry of sheetEntries) {
+      const sheetXml = files.get(entry.target) || files.get(entry.target.toLowerCase());
+      if (sheetXml) {
+        const matrix = parseWorksheet(sheetXml, sharedStrings);
+        if (matrix.length > 0) {
+          allMatrices.push({ name: entry.name, matrix });
+        }
+      }
+    }
+
+    if (allMatrices.length > 0) {
+      // Find matrix sheets that have date columns
+      const allPreviewRows: ExcelEmployeeRow[] = [];
+      let totalValid = 0;
+      let seq = 1;
+
+      for (const { name: sheetName, matrix } of allMatrices) {
+        // Test if this sheet has date columns
+        let headerRowIdx = -1;
+        let nameColIdx = -1;
+        const dateCols: { colIdx: number; dateStr: string }[] = [];
+
+        for (let r = 0; r < Math.min(5, matrix.length); r++) {
+          const row = matrix[r];
+          const foundDates: { colIdx: number; dateStr: string }[] = [];
+          let foundName = -1;
+
+          row.forEach((cellVal, cIdx) => {
+            const clean = cellVal.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (clean.includes('name') || clean === 'employee' || clean === 'nom' || clean === 'amazina') {
+              foundName = cIdx;
+            } else if (!clean.includes('total') && !clean.includes('amountpaid') && !clean.includes('summary')) {
+              let parsedDate = parseClientDateHeader(cellVal);
+              if (!parsedDate && parseMonthName(sheetName) > 0) {
+                const dayMatch = cellVal.trim().toLowerCase().match(/^(\d{1,2})(?:st|nd|rd|th)?/);
+                if (dayMatch) {
+                  const day = String(parseInt(dayMatch[1], 10)).padStart(2, '0');
+                  const month = String(parseMonthName(sheetName)).padStart(2, '0');
+                  parsedDate = `${new Date().getFullYear()}-${month}-${day}`;
+                }
+              }
+              if (parsedDate) {
+                foundDates.push({ colIdx: cIdx, dateStr: parsedDate });
+              }
+            }
+          });
+
+          if (foundDates.length > 0) {
+            headerRowIdx = r;
+            nameColIdx = foundName >= 0 ? foundName : 0;
+            dateCols.push(...foundDates);
+            break;
+          }
+        }
+
+        if (dateCols.length > 0 && headerRowIdx >= 0) {
+          for (let r = headerRowIdx + 1; r < matrix.length; r++) {
+            const row = matrix[r];
+            const empName = (row[nameColIdx] || '').trim();
+            if (!empName) continue;
+            const lower = empName.toLowerCase();
+            if (lower.startsWith('total') || lower.startsWith('summary')) continue;
+
+            for (const { colIdx, dateStr } of dateCols) {
+              const cellVal = (row[colIdx] || '').trim();
+              const numClean = cellVal.replace(/[^0-9.]/g, '');
+              let amount = 0;
+              let mealStatus = 'Not Ate';
+
+              if (numClean && !isNaN(parseFloat(numClean))) {
+                const parsed = parseFloat(numClean);
+                if (parsed > 0) {
+                  amount = parsed;
+                  mealStatus = 'Ate';
+                }
+              }
+
+              allPreviewRows.push({
+                rowNumber: seq++,
+                employeeName: empName,
+                telephone: '',
+                position: 'Worker',
+                mealDate: dateStr,
+                mealStatus,
+                amountUsed: amount,
+                status: 'VALID',
+                valid: true,
+                duplicate: false,
+              });
+              totalValid++;
+            }
+          }
+        }
+      }
+
+      if (allPreviewRows.length > 0) {
+        return {
+          totalRows: allPreviewRows.length,
+          validRows: totalValid,
+          invalidRows: 0,
+          duplicateRows: 0,
+          rows: allPreviewRows.slice(0, 100), // Cap preview rows to 100 for instant UI rendering
+          summaryMessage: `Extracted ${allPreviewRows.length} daily meal records across multiple schedule sheets.`,
+        };
+      }
+
+      // If no matrix sheets, fallback to standard on first sheet
+      return buildPreviewFromRows(allMatrices[0].matrix);
     }
   } catch (err) {
     console.warn('Direct zip parsing failed, trying text/csv fallback:', err);
   }
 
-  // If XML spreadsheet / plain text fallback
+  // XML spreadsheet / plain text fallback
   const text = await file.text();
   if (text.includes('<Table') || text.includes('<Row')) {
     const parser = new DOMParser();

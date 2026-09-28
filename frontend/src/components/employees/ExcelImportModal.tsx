@@ -187,7 +187,58 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setSelectedRowIndices(updated);
   };
 
+  const handleDirectImport = async () => {
+    if (!selectedFile) {
+      setErrorMessage('Please select an Excel file to import');
+      return;
+    }
+
+    setStep('importing');
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const rawRes: any = await employeeApi.uploadAndImportExcel(selectedFile, mealDate);
+
+      const successCount = rawRes.mealRecordsCreated ?? rawRes.importedCount ?? rawRes.successCount ?? 0;
+      const employeesProcessed = rawRes.employeesProcessed ?? 0;
+      const ateCount = rawRes.ateCount ?? 0;
+      const didNotEatCount = rawRes.didNotEatCount ?? (successCount - ateCount);
+
+      const result: ExcelImportResultResponse = {
+        totalProcessed: successCount,
+        successCount,
+        importedCount: successCount,
+        employeesProcessed,
+        mealRecordsCreated: successCount,
+        ateCount,
+        didNotEatCount,
+        duplicateCount: rawRes.duplicateCount ?? 0,
+        invalidCount: rawRes.invalidCount ?? 0,
+        errorCount: rawRes.errorCount ?? 0,
+        importedEmployeeIds: rawRes.importedEmployeeIds || [],
+        errorRows: rawRes.errorRows || rawRes.failedRows || [],
+        message: rawRes.message || `Import Completed: ${employeesProcessed} employee(s) processed, ${successCount} meal record(s) created (${ateCount} ATE, ${didNotEatCount} DID NOT EAT).`,
+      };
+
+      setImportResult(result);
+      setStep('result');
+    } catch (err: any) {
+      setErrorMessage(
+        err.response?.data?.message || err.message || 'Import failed. Please check your file.'
+      );
+      setStep('upload');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirmImport = async () => {
+    if (selectedFile) {
+      await handleDirectImport();
+      return;
+    }
+
     if (!previewData) return;
 
     const rowsToImport = previewData.rows.filter((_, idx) =>
@@ -473,27 +524,38 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 Employee IDs (EMP001, EMP002...) will be automatically generated.
               </p>
 
-              <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
                 <Button
                   type="button"
-                  variant="primary"
+                  variant="outline"
                   disabled={!selectedFile || loading}
                   onClick={handlePreview}
+                  className="text-xs sm:text-sm text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70 border-indigo-200"
                 >
                   {loading ? (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Validating File...
+                      Validating...
                     </>
                   ) : (
                     <>
                       Preview & Validate
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      <ArrowRight className="w-4 h-4 ml-1.5" />
                     </>
                   )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={!selectedFile || loading}
+                  onClick={handleDirectImport}
+                  className="text-xs sm:text-sm shadow-md"
+                >
+                  <UploadCloud className="w-4 h-4 mr-1.5" />
+                  Import Excel Directly
                 </Button>
               </div>
             </div>

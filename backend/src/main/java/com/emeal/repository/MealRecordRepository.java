@@ -23,6 +23,9 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
     @Query("SELECT m FROM MealRecord m JOIN FETCH m.employee WHERE m.mealDate = :mealDate")
     List<MealRecord> findByMealDate(@Param("mealDate") LocalDate mealDate);
 
+    @Query("SELECT m FROM MealRecord m JOIN FETCH m.employee WHERE m.mealDate IN :dates")
+    List<MealRecord> findByMealDateIn(@Param("dates") Collection<LocalDate> dates);
+
     List<MealRecord> findByMealDateOrderByEmployeeEmployeeCodeAsc(LocalDate mealDate);
 
     List<MealRecord> findByMealDateAndEmployeeDepartmentOrderByEmployeeEmployeeCodeAsc(LocalDate mealDate, String department);
