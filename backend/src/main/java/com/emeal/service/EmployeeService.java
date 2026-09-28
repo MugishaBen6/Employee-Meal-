@@ -147,8 +147,8 @@ public class EmployeeService {
 
         for (Employee emp : filteredEmployees) {
             MealRecord mr = recordMap.get(emp.getId());
-            String mStatus;
-            BigDecimal amount = null;
+            String mStatus = "ATE";
+            BigDecimal amount = new BigDecimal("600.00");
             Long mealRecordId = null;
             String recordedBy = null;
             java.time.LocalDateTime mealRecordedAt = null;
@@ -157,16 +157,9 @@ public class EmployeeService {
                 mealRecordId = mr.getId();
                 recordedBy = mr.getRecordedBy();
                 mealRecordedAt = mr.getCreatedAt();
-                if (mr.getMealStatus() == MealStatus.ATE) {
-                    mStatus = "ATE";
+                if (mr.getAmount() != null && mr.getAmount().compareTo(BigDecimal.ZERO) > 0) {
                     amount = mr.getAmount();
-                } else {
-                    mStatus = "DID_NOT_EAT";
-                    amount = BigDecimal.ZERO;
                 }
-            } else {
-                mStatus = "NOT_RECORDED";
-                amount = null; // Displayed as "—"
             }
 
             // Apply mealStatusFilter if specified
