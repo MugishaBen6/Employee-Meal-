@@ -198,7 +198,31 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setErrorMessage(null);
 
     try {
-      const rawRes: any = await employeeApi.uploadAndImportExcel(selectedFile, mealDate);
+      let rawRes: any;
+      try {
+        rawRes = await employeeApi.uploadAndImportExcel(selectedFile, mealDate);
+      } catch (uploadErr: any) {
+        console.warn('Direct upload endpoint encountered an issue, trying preview + confirm fallback:', uploadErr);
+        let previewDataToConfirm: ExcelImportPreviewResponse;
+        try {
+          previewDataToConfirm = await employeeApi.previewExcelImport(selectedFile);
+        } catch (previewErr) {
+          previewDataToConfirm = await parseExcelOrCsvClient(selectedFile);
+        }
+
+        const validRows = (previewDataToConfirm.rows || []).filter(
+          (r) => r.valid === true || r.status === 'VALID' || r.status === undefined
+        );
+
+        if (validRows.length === 0) {
+          throw uploadErr;
+        }
+
+        rawRes = await employeeApi.confirmExcelImport({
+          mealDate,
+          rows: validRows,
+        });
+      }
 
       const successCount = rawRes.mealRecordsCreated ?? rawRes.importedCount ?? rawRes.successCount ?? 0;
       const employeesProcessed = rawRes.employeesProcessed ?? 0;
