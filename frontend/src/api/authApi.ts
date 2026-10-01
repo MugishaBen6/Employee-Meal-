@@ -10,6 +10,14 @@ import {
 } from '../types';
 
 export const authApi = {
+  ping: async () => {
+    try {
+      await axiosClient.get('/auth/ping', { timeout: 10000 });
+    } catch (e) {
+      // ignore
+    }
+  },
+
   getSetupStatus: async () => {
     const response = await axiosClient.get<ApiResponse<{ setupNeeded: boolean }>>('/auth/setup-status');
     return response.data.data;

@@ -33,6 +33,7 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [setupNeeded, setSetupNeeded] = useState(false);
+  const [slowServerWarning, setSlowServerWarning] = useState(false);
 
   const {
     register,
@@ -42,12 +43,15 @@ const Login: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
+    // Proactively warm up backend container immediately on login screen visit
+    authApi.ping();
+
     const checkSetup = async () => {
       try {
         const res = await authApi.getSetupStatus();
         if (isMounted) setSetupNeeded(res.setupNeeded);
       } catch (err) {
-        // Backend not reachable or error
+        // Backend not reachable or waking up
       }
     };
     checkSetup();
@@ -55,6 +59,18 @@ const Login: React.FC = () => {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let timer: any;
+    if (isSubmitting) {
+      timer = setTimeout(() => {
+        setSlowServerWarning(true);
+      }, 2500);
+    } else {
+      setSlowServerWarning(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isSubmitting]);
 
   const onSubmit = async (data: LoginFormInputs) => {
     setError(null);
@@ -271,8 +287,8 @@ const Login: React.FC = () => {
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Signing in...</span>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                  <span>{slowServerWarning ? 'Connecting / Waking server...' : 'Signing in...'}</span>
                 </>
               ) : (
                 <>

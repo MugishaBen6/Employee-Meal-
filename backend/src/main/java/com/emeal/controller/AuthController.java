@@ -26,6 +26,11 @@ public class AuthController {
         this.authService = authService;
     }
 
+    @GetMapping("/ping")
+    public ResponseEntity<Map<String, String>> ping() {
+        return ResponseEntity.ok(Map.of("status", "UP", "timestamp", String.valueOf(System.currentTimeMillis())));
+    }
+
     @GetMapping("/setup-status")
     public ResponseEntity<ApiResponse<Map<String, Boolean>>> getSetupStatus() {
         boolean setupNeeded = authService.isInitialAdminSetupNeeded();
