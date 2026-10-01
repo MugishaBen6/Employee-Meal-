@@ -17,6 +17,7 @@ import com.emeal.exception.DuplicateResourceException;
 import com.emeal.exception.ResourceNotFoundException;
 import com.emeal.repository.PasswordResetTokenRepository;
 import com.emeal.repository.UserRepository;
+import com.emeal.security.UserPrincipal;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -136,6 +137,10 @@ public class AuthService {
         User user = userRepository.findByIdentifier(identifier)
                 .orElseThrow(() -> new BadRequestException("Invalid username/email or password"));
 
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            throw new BadRequestException("Invalid username/email or password");
+        }
+
         if (user.getStatus() == UserStatus.PENDING_APPROVAL) {
             throw new BadRequestException("Your account is pending administrator approval before you can log in.");
         }
@@ -143,11 +148,11 @@ public class AuthService {
             throw new BadRequestException("Your account has been deactivated or rejected. Please contact an administrator.");
         }
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        user.getUsername(),
-                        loginRequest.getPassword()
-                )
+        UserPrincipal userPrincipal = UserPrincipal.build(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userPrincipal,
+                null,
+                userPrincipal.getAuthorities()
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);

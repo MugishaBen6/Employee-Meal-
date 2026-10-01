@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AppLayout from './components/layout/AppLayout';
@@ -7,16 +7,28 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import SetupAdmin from './pages/SetupAdmin';
-import Dashboard from './pages/Dashboard';
-import Employees from './pages/Employees';
-import MealRecording from './pages/MealRecording';
-import Reports from './pages/Reports';
-import Expenses from './pages/Expenses';
-import AuditLogs from './pages/AuditLogs';
-import Users from './pages/Users';
-import Settings from './pages/Settings';
-import NotFound from './pages/NotFound';
+
+// Route-level code splitting for high performance
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Employees = lazy(() => import('./pages/Employees'));
+const MealRecording = lazy(() => import('./pages/MealRecording'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const AuditLogs = lazy(() => import('./pages/AuditLogs'));
+const Users = lazy(() => import('./pages/Users'));
+const Settings = lazy(() => import('./pages/Settings'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
 import { Role } from './types';
+
+const PageFallback = () => (
+  <div className="flex items-center justify-center min-h-[400px] w-full">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">Loading...</p>
+    </div>
+  </div>
+);
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: Role[] }> = ({ children, roles }) => {
   const { isAuthenticated, user, getDashboardPath } = useAuth();

@@ -41,26 +41,71 @@ public class DashboardService {
     public DashboardStatsResponse getDashboardStatistics() {
         LocalDate today = LocalDate.now();
         LocalDate latestDate = mealRecordRepository.findLatestMealDate();
-        LocalDate activeDate = today;
-
-        long todayAte = mealRecordRepository.countByMealDateAndMealStatus(today, MealStatus.ATE);
-        long todayDidNotEat = mealRecordRepository.countByMealDateAndMealStatus(today, MealStatus.DID_NOT_EAT);
-
-        if (todayAte == 0 && todayDidNotEat == 0 && latestDate != null) {
-            activeDate = latestDate;
-        }
+        LocalDate activeDate = (latestDate != null) ? latestDate : today;
 
         LocalDate startOfWeek = activeDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate startOfMonth = activeDate.with(TemporalAdjusters.firstDayOfMonth());
+        LocalDate chartStartDate = activeDate.minusDays(9);
+
+        // Fetch range covering the earliest of startOfMonth or chartStartDate up to activeDate in ONE query
+        LocalDate queryStartDate = startOfMonth.isBefore(chartStartDate) ? startOfMonth : chartStartDate;
+
+        List<Object[]> aggregates = mealRecordRepository.getDailyAggregatesBetween(queryStartDate, activeDate);
+
+        long ateToday = 0;
+        long didNotEatToday = 0;
+        BigDecimal todayTotalCost = BigDecimal.ZERO;
+        BigDecimal thisWeekTotalCost = BigDecimal.ZERO;
+        BigDecimal thisMonthTotalCost = BigDecimal.ZERO;
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM");
+        Map<LocalDate, ExpenseChartData> chartMap = new LinkedHashMap<>();
+        for (LocalDate d = chartStartDate; !d.isAfter(activeDate); d = d.plusDays(1)) {
+            chartMap.put(d, ExpenseChartData.builder()
+                    .date(d)
+                    .formattedDate(d.format(formatter))
+                    .amount(BigDecimal.ZERO)
+                    .ateCount(0)
+                    .didNotEatCount(0)
+                    .build());
+        }
+
+        for (Object[] row : aggregates) {
+            LocalDate rowDate = (LocalDate) row[0];
+            MealStatus rowStatus = (MealStatus) row[1];
+            BigDecimal rowSum = row[2] != null ? (BigDecimal) row[2] : BigDecimal.ZERO;
+            long rowCount = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+
+            if (rowDate.equals(activeDate)) {
+                if (rowStatus == MealStatus.ATE) {
+                    ateToday += rowCount;
+                    todayTotalCost = todayTotalCost.add(rowSum);
+                } else if (rowStatus == MealStatus.DID_NOT_EAT) {
+                    didNotEatToday += rowCount;
+                }
+            }
+
+            if (!rowDate.isBefore(startOfWeek) && !rowDate.isAfter(activeDate) && rowStatus == MealStatus.ATE) {
+                thisWeekTotalCost = thisWeekTotalCost.add(rowSum);
+            }
+
+            if (!rowDate.isBefore(startOfMonth) && !rowDate.isAfter(activeDate) && rowStatus == MealStatus.ATE) {
+                thisMonthTotalCost = thisMonthTotalCost.add(rowSum);
+            }
+
+            ExpenseChartData chartData = chartMap.get(rowDate);
+            if (chartData != null) {
+                if (rowStatus == MealStatus.ATE) {
+                    chartData.setAmount(chartData.getAmount().add(rowSum));
+                    chartData.setAteCount(chartData.getAteCount() + rowCount);
+                } else if (rowStatus == MealStatus.DID_NOT_EAT) {
+                    chartData.setDidNotEatCount(chartData.getDidNotEatCount() + rowCount);
+                }
+            }
+        }
 
         long totalActiveEmployees = employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
-        long ateToday = mealRecordRepository.countByMealDateAndMealStatus(activeDate, MealStatus.ATE);
-        long didNotEatToday = mealRecordRepository.countByMealDateAndMealStatus(activeDate, MealStatus.DID_NOT_EAT);
 
-        BigDecimal todayTotalCost = mealRecordRepository.sumAmountByMealDate(activeDate);
-        BigDecimal thisWeekTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfWeek, activeDate);
-        BigDecimal thisMonthTotalCost = mealRecordRepository.sumAmountByMealDateBetween(startOfMonth, activeDate);
-        
         long totalMealsCount = mealRecordRepository.countTotalMealsAteForActiveEmployees();
         if (totalMealsCount == 0) {
             totalMealsCount = mealRecordRepository.countTotalMealsAte();
@@ -82,9 +127,6 @@ public class DashboardService {
 
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
-        // 10 Days Chart Data covering the active range
-        List<ExpenseChartData> dailyExpenditures = getExpendituresBetween(activeDate.minusDays(9), activeDate);
-
         // Department breakdown for activeDate
         List<DepartmentMealStats> departmentStats = getDepartmentStatsForDate(activeDate);
 
@@ -97,13 +139,13 @@ public class DashboardService {
                 .didNotEatToday(didNotEatToday)
                 .totalMealsCount(totalMealsCount)
                 .totalExpenseCost(totalExpenseCost != null ? totalExpenseCost : BigDecimal.ZERO)
-                .standardMealPrice(standardMealPrice != null ? standardMealPrice : new BigDecimal("600.00"))
+                .standardMealPrice(standardMealPrice)
                 .todayTotalCost(todayTotalCost)
                 .thisWeekTotalCost(thisWeekTotalCost)
                 .thisMonthTotalCost(thisMonthTotalCost)
                 .averageMealCostToday(averageMealCostToday)
                 .currency(currency)
-                .dailyExpenditures(dailyExpenditures)
+                .dailyExpenditures(new ArrayList<>(chartMap.values()))
                 .departmentStats(departmentStats)
                 .recentActivities(recentActivities)
                 .build();
