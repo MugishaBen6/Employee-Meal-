@@ -1,0 +1,15 @@
+name: 24/7 Keep Alive Pinger
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render from sleeping
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend
+        run: |
+          curl -s -f "https://employee-meal.onrender.com/api/auth/setup-status" || true
