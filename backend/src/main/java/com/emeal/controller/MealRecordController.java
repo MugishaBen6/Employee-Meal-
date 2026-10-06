@@ -76,7 +76,7 @@ public class MealRecordController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse<MealRecordDTO>> updateMealRecord(
             @PathVariable Long id,
             @Valid @RequestBody UpdateMealRecordRequest request) {

@@ -57,14 +57,19 @@ public class MealRecordService {
         LocalDate targetDate = (request.getMealDate() != null) ? request.getMealDate() : LocalDate.now();
 
         if (mealRecordRepository.existsByEmployeeIdAndMealDate(employee.getId(), targetDate)) {
-            throw new DuplicateResourceException("Meal already recorded for this employee today.");
+            throw new DuplicateResourceException("A meal record already exists for " + employee.getFullName() + " on " + targetDate + ".");
         }
 
         BigDecimal amount = request.getAmount();
-        if (amount == null) {
-            amount = (request.getMealStatus() == MealStatus.DID_NOT_EAT) 
-                    ? BigDecimal.ZERO 
-                    : settingsService.getStandardMealPrice();
+        if (request.getMealStatus() == MealStatus.DID_NOT_EAT) {
+            amount = BigDecimal.ZERO;
+        } else {
+            if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
+                amount = settingsService.getStandardMealPrice();
+                if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+                    amount = new BigDecimal("600.00");
+                }
+            }
         }
 
         String username = getCurrentUsername();
@@ -89,10 +94,25 @@ public class MealRecordService {
     @Transactional(readOnly = true)
     public QuickMealCheckResponse quickCheck(String query, LocalDate targetDate) {
         LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
-        
-        Employee employee = employeeRepository.findByEmployeeCode(query.trim())
-                .orElseGet(() -> employeeRepository.findById(parseId(query))
-                        .orElseThrow(() -> new ResourceNotFoundException("Employee not found with code or ID: " + query)));
+        String q = query != null ? query.trim() : "";
+
+        Employee employee = null;
+        Long id = parseId(q);
+        if (id > 0) {
+            employee = employeeRepository.findById(id).orElse(null);
+        }
+        if (employee == null) {
+            employee = employeeRepository.findByEmployeeCode(q).orElse(null);
+        }
+        if (employee == null) {
+            List<Employee> matches = employeeRepository.quickSearchActiveEmployees(q, PageRequest.of(0, 1));
+            if (!matches.isEmpty()) {
+                employee = matches.get(0);
+            }
+        }
+        if (employee == null) {
+            throw new ResourceNotFoundException("Employee not found with code, ID, or name: " + query);
+        }
 
         Optional<MealRecord> existingOpt = mealRecordRepository.findByEmployeeIdAndMealDate(employee.getId(), date);
         boolean alreadyRecorded = existingOpt.isPresent();
@@ -169,12 +189,16 @@ public class MealRecordService {
                 .orElseThrow(() -> new ResourceNotFoundException("Meal record not found with id: " + id));
 
         record.setMealStatus(request.getMealStatus());
-        record.setAmount(request.getAmount());
+        BigDecimal amount = (request.getMealStatus() == MealStatus.DID_NOT_EAT)
+                ? BigDecimal.ZERO
+                : (request.getAmount() != null ? request.getAmount() : settingsService.getStandardMealPrice());
+        record.setAmount(amount);
         MealRecord updated = mealRecordRepository.save(record);
 
         auditLogService.logAction("UPDATE_MEAL_RECORD", "MEAL_RECORD", updated.getId().toString(),
                 "Updated meal record ID " + id + " for employee " + record.getEmployee().getEmployeeCode() +
-                ": status=" + request.getMealStatus() + ", amount=" + request.getAmount());
+                " (" + record.getEmployee().getFullName() + ") on " + record.getMealDate() +
+                ": status=" + request.getMealStatus() + ", amount=" + amount + " RWF");
 
         return MealRecordDTO.fromEntity(updated);
     }
