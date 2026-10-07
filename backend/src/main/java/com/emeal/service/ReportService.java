@@ -46,7 +46,7 @@ public class ReportService {
     @Transactional(readOnly = true)
     public DailyReportSummaryDTO generateDailyReportSummary(LocalDate date, String department) {
         LocalDate reportDate = (date != null) ? date : LocalDate.now();
-        String companyName = settingsService.getSettingValue("COMPANY_NAME", "Employee Meal Management System");
+        String companyName = settingsService.getSettingValue("COMPANY_NAME", "RWANDA PLASTIC INDUSTRY");
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
         long totalEmployees;
@@ -131,7 +131,7 @@ public class ReportService {
             org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
             titleCell.setCellValue(summary.getCompanyName() + " - DAILY MEAL REPORT");
             titleCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
 
             rowIdx++;
 
@@ -163,7 +163,7 @@ public class ReportService {
             rowIdx++;
 
             org.apache.poi.ss.usermodel.Row tableHeader = sheet.createRow(rowIdx++);
-            String[] headers = {"Employee Code", "Employee Name", "Department", "Meal Status", "Amount (" + summary.getCurrency() + ")", "Recorded By", "Time"};
+            String[] headers = {"Employee Code", "Employee Name", "Position", "Department", "Meal Status", "Amount (" + summary.getCurrency() + ")", "Recorded By", "Time"};
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell cell = tableHeader.createCell(i);
                 cell.setCellValue(headers[i]);
@@ -174,24 +174,25 @@ public class ReportService {
                 org.apache.poi.ss.usermodel.Row emptyRow = sheet.createRow(rowIdx++);
                 org.apache.poi.ss.usermodel.Cell emptyCell = emptyRow.createCell(0);
                 emptyCell.setCellValue("No meal records found for the selected date.");
-                sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 6));
+                sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 7));
             } else {
                 for (MealRecordDTO dto : summary.getRecords()) {
                     org.apache.poi.ss.usermodel.Row dataRow = sheet.createRow(rowIdx++);
                     dataRow.createCell(0).setCellValue(dto.getEmployeeCode());
                     dataRow.createCell(1).setCellValue(dto.getEmployeeName());
-                    dataRow.createCell(2).setCellValue(dto.getDepartment());
-                    dataRow.createCell(3).setCellValue(dto.getMealStatus().name());
-                    dataRow.createCell(4).setCellValue(dto.getAmount().doubleValue());
-                    dataRow.createCell(5).setCellValue(dto.getRecordedBy());
-                    dataRow.createCell(6).setCellValue(dto.getCreatedAt() != null ? dto.getCreatedAt().format(TIME_FORMATTER) : "-");
+                    dataRow.createCell(2).setCellValue(dto.getPosition() != null ? dto.getPosition() : "Worker");
+                    dataRow.createCell(3).setCellValue(dto.getDepartment());
+                    dataRow.createCell(4).setCellValue(dto.getMealStatus().name());
+                    dataRow.createCell(5).setCellValue(dto.getAmount().doubleValue());
+                    dataRow.createCell(6).setCellValue(dto.getRecordedBy());
+                    dataRow.createCell(7).setCellValue(dto.getCreatedAt() != null ? dto.getCreatedAt().format(TIME_FORMATTER) : "-");
                 }
             }
 
             org.apache.poi.ss.usermodel.Row totalRow = sheet.createRow(rowIdx++);
             totalRow.createCell(0).setCellValue("TOTAL EXPENDITURE");
             totalRow.getCell(0).setCellStyle(boldStyle);
-            org.apache.poi.ss.usermodel.Cell totalAmountCell = totalRow.createCell(4);
+            org.apache.poi.ss.usermodel.Cell totalAmountCell = totalRow.createCell(5);
             totalAmountCell.setCellValue(summary.getTotalExpenditure().doubleValue());
             totalAmountCell.setCellStyle(boldStyle);
 
@@ -240,11 +241,11 @@ public class ReportService {
 
             document.add(summaryTable);
 
-            PdfPTable table = new PdfPTable(7);
+            PdfPTable table = new PdfPTable(8);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{15, 22, 18, 12, 13, 12, 8});
+            table.setWidths(new float[]{14, 20, 16, 16, 11, 13, 12, 8});
 
-            String[] headers = {"Code", "Name", "Department", "Status", "Amount", "Recorded By", "Time"};
+            String[] headers = {"Code", "Name", "Position", "Department", "Status", "Amount", "Recorded By", "Time"};
             com.lowagie.text.Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, java.awt.Color.WHITE);
             java.awt.Color headerBg = new java.awt.Color(15, 23, 42);
 
@@ -261,7 +262,7 @@ public class ReportService {
 
             if (summary.getRecords().isEmpty()) {
                 PdfPCell emptyCell = new PdfPCell(new Phrase("No meal records found for the selected date.", dataFont));
-                emptyCell.setColspan(7);
+                emptyCell.setColspan(8);
                 emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 emptyCell.setPadding(12);
                 table.addCell(emptyCell);
@@ -269,6 +270,7 @@ public class ReportService {
                 for (MealRecordDTO r : summary.getRecords()) {
                     table.addCell(createPdfCell(r.getEmployeeCode(), dataFont, Element.ALIGN_LEFT));
                     table.addCell(createPdfCell(r.getEmployeeName(), dataFont, Element.ALIGN_LEFT));
+                    table.addCell(createPdfCell(r.getPosition() != null ? r.getPosition() : "Worker", dataFont, Element.ALIGN_LEFT));
                     table.addCell(createPdfCell(r.getDepartment(), dataFont, Element.ALIGN_LEFT));
                     
                     PdfPCell statusCell = createPdfCell(r.getMealStatus().name(), boldDataFont, Element.ALIGN_CENTER);
@@ -287,7 +289,7 @@ public class ReportService {
 
             document.add(table);
 
-            Paragraph footer = new Paragraph("Generated by Employee Meal Management System on " + LocalDateTime.now().format(DATETIME_FORMATTER),
+            Paragraph footer = new Paragraph("Generated by " + summary.getCompanyName() + " on " + LocalDateTime.now().format(DATETIME_FORMATTER),
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8, java.awt.Color.GRAY));
             footer.setSpacingBefore(20);
             footer.setAlignment(Element.ALIGN_RIGHT);

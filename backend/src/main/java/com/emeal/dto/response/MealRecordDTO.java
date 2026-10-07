@@ -14,6 +14,7 @@ public class MealRecordDTO {
     private String employeeCode;
     private String employeeName;
     private String department;
+    private String position;
     private LocalDate mealDate;
     private MealStatus mealStatus;
     private BigDecimal amount;
@@ -23,12 +24,13 @@ public class MealRecordDTO {
     public MealRecordDTO() {
     }
 
-    public MealRecordDTO(Long id, Long employeeId, String employeeCode, String employeeName, String department, LocalDate mealDate, MealStatus mealStatus, BigDecimal amount, String recordedBy, LocalDateTime createdAt) {
+    public MealRecordDTO(Long id, Long employeeId, String employeeCode, String employeeName, String department, String position, LocalDate mealDate, MealStatus mealStatus, BigDecimal amount, String recordedBy, LocalDateTime createdAt) {
         this.id = id;
         this.employeeId = employeeId;
         this.employeeCode = employeeCode;
         this.employeeName = employeeName;
         this.department = department;
+        this.position = position;
         this.mealDate = mealDate;
         this.mealStatus = mealStatus;
         this.amount = amount;
@@ -55,6 +57,9 @@ public class MealRecordDTO {
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
 
+    public String getPosition() { return position; }
+    public void setPosition(String position) { this.position = position; }
+
     public LocalDate getMealDate() { return mealDate; }
     public void setMealDate(LocalDate mealDate) { this.mealDate = mealDate; }
 
@@ -77,6 +82,7 @@ public class MealRecordDTO {
                 .employeeCode(record.getEmployee().getEmployeeCode())
                 .employeeName(record.getEmployee().getFullName())
                 .department(record.getEmployee().getDepartment())
+                .position(record.getEmployee().getPosition() != null ? record.getEmployee().getPosition() : "Worker")
                 .mealDate(record.getMealDate())
                 .mealStatus(record.getMealStatus())
                 .amount(record.getAmount())
@@ -91,6 +97,7 @@ public class MealRecordDTO {
         private String employeeCode;
         private String employeeName;
         private String department;
+        private String position;
         private LocalDate mealDate;
         private MealStatus mealStatus;
         private BigDecimal amount;
@@ -104,6 +111,7 @@ public class MealRecordDTO {
         public MealRecordDTOBuilder employeeCode(String employeeCode) { this.employeeCode = employeeCode; return this; }
         public MealRecordDTOBuilder employeeName(String employeeName) { this.employeeName = employeeName; return this; }
         public MealRecordDTOBuilder department(String department) { this.department = department; return this; }
+        public MealRecordDTOBuilder position(String position) { this.position = position; return this; }
         public MealRecordDTOBuilder mealDate(LocalDate mealDate) { this.mealDate = mealDate; return this; }
         public MealRecordDTOBuilder mealStatus(MealStatus mealStatus) { this.mealStatus = mealStatus; return this; }
         public MealRecordDTOBuilder amount(BigDecimal amount) { this.amount = amount; return this; }
@@ -111,7 +119,7 @@ public class MealRecordDTO {
         public MealRecordDTOBuilder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
 
         public MealRecordDTO build() {
-            return new MealRecordDTO(id, employeeId, employeeCode, employeeName, department, mealDate, mealStatus, amount, recordedBy, createdAt);
+            return new MealRecordDTO(id, employeeId, employeeCode, employeeName, department, position, mealDate, mealStatus, amount, recordedBy, createdAt);
         }
     }
 }

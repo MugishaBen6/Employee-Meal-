@@ -12,12 +12,9 @@ import {
   FileText,
   Calendar,
   Filter,
-  Download,
-  Users,
-  CheckCircle2,
-  XCircle,
-  DollarSign,
-  Calculator,
+  Printer,
+  RefreshCw,
+  Search,
 } from 'lucide-react';
 
 export const Reports: React.FC = () => {
@@ -91,16 +88,33 @@ export const Reports: React.FC = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const formattedDisplayDate = summary?.formattedReportDate || selectedDate;
+
   return (
     <div className="space-y-5 sm:space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 print:hidden">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reports Engine</h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Generate and export official Daily, Weekly, and Monthly meal expense reports</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Generate and export official date-specific meal expense reports</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <Button
+            onClick={handlePrint}
+            size="sm"
+            variant="outline"
+            className="border-slate-300 text-slate-700 hover:bg-slate-100 gap-1.5 sm:gap-2 text-xs sm:text-sm min-h-[38px]"
+          >
+            <Printer className="w-4 h-4 shrink-0 text-slate-600" />
+            <span className="hidden sm:inline">Print Report</span>
+            <span className="sm:hidden">Print</span>
+          </Button>
+
           <Button
             onClick={handleDownloadExcel}
             isLoading={exportingExcel}
@@ -108,7 +122,8 @@ export const Reports: React.FC = () => {
             className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 gap-1.5 sm:gap-2 shadow-emerald-600/20 text-xs sm:text-sm min-h-[38px]"
           >
             <FileSpreadsheet className="w-4 h-4 shrink-0" />
-            <span>Download Excel</span>
+            <span className="hidden sm:inline">Download Excel</span>
+            <span className="sm:hidden">Excel</span>
           </Button>
 
           <Button
@@ -118,15 +133,16 @@ export const Reports: React.FC = () => {
             className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 gap-1.5 sm:gap-2 shadow-rose-600/20 text-xs sm:text-sm min-h-[38px]"
           >
             <FileText className="w-4 h-4 shrink-0" />
-            <span>Download PDF</span>
+            <span className="hidden sm:inline">Download PDF</span>
+            <span className="sm:hidden">PDF</span>
           </Button>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <Card className="p-3.5 sm:p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 w-full sm:w-auto">
+      {/* Filter & Generation Bar */}
+      <Card className="p-3.5 sm:p-4 print:hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
               <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
               <label className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">Date:</label>
@@ -152,13 +168,32 @@ export const Reports: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            <Button
+              onClick={fetchReportData}
+              isLoading={loading}
+              size="sm"
+              className="bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 gap-1.5 text-xs sm:text-sm min-h-[38px] font-semibold"
+            >
+              <Search className="w-4 h-4 shrink-0" />
+              <span>GENERATE REPORT</span>
+            </Button>
           </div>
 
-          <span className="text-[11px] text-slate-400 font-mono truncate">
-            {summary?.companyName} • {summary?.formattedReportDate}
-          </span>
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-100/70 px-3 py-1.5 rounded-lg border border-slate-200">
+            <span className="font-bold text-slate-800">{summary?.companyName || 'RWANDA PLASTIC INDUSTRY'}</span>
+            <span>•</span>
+            <span className="font-mono text-indigo-700 font-semibold">{formattedDisplayDate}</span>
+          </div>
         </div>
       </Card>
+
+      {/* Official Print Header */}
+      <div className="hidden print:block text-center border-b pb-4 mb-4">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-wide uppercase">{summary?.companyName || 'RWANDA PLASTIC INDUSTRY'}</h1>
+        <h2 className="text-base font-semibold text-slate-700 mt-1 uppercase">DAILY EMPLOYEE MEAL REPORT</h2>
+        <p className="text-xs text-slate-500 font-mono mt-1">Reporting Date: {formattedDisplayDate}</p>
+      </div>
 
       {/* Summary Cards */}
       {loading || !summary ? (
@@ -171,39 +206,40 @@ export const Reports: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500">
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Total Employees</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summary.totalEmployees}</h3>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500 shadow-sm">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Total Records ({formattedDisplayDate})</p>
+            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summary.records.length}</h3>
           </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500">
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Ate</p>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500 shadow-sm">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Ate</p>
             <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">{summary.ateCount}</h3>
           </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500">
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Did Not Eat</p>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500 shadow-sm">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Did Not Eat</p>
             <h3 className="text-lg sm:text-2xl font-bold text-rose-600 mt-0.5 sm:mt-1">{summary.didNotEatCount}</h3>
           </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-500 col-span-2 sm:col-span-1">
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Total Expenditure</p>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-500 col-span-2 sm:col-span-1 shadow-sm">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Total Expenditure</p>
             <h3 className="text-base sm:text-xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">{summary.totalExpenditure.toLocaleString()} {summary.currency}</h3>
           </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 col-span-2 sm:col-span-1">
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase">Average Meal Cost</p>
+          <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 col-span-2 sm:col-span-1 shadow-sm">
+            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Average Meal Cost</p>
             <h3 className="text-base sm:text-xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">{summary.averageMealCost.toLocaleString()} {summary.currency}</h3>
           </Card>
         </div>
       )}
 
       {/* Transactions Table */}
-      <Card title={`Detailed Meal Transactions (${selectedDate})`} className="p-0 overflow-hidden">
+      <Card title={`Detailed Meal Transactions — ${formattedDisplayDate}`} className="p-0 overflow-hidden shadow-sm">
         <div className="overflow-x-auto touch-scroll">
-          <table className="w-full text-left text-sm min-w-[640px]">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
+          <table className="w-full text-left text-sm min-w-[720px]">
+            <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">Code</th>
                 <th className="py-3.5 px-4">Employee Name</th>
+                <th className="py-3.5 px-4">Position</th>
                 <th className="py-3.5 px-4">Department</th>
-                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4 text-right">Amount ({summary?.currency || 'RWF'})</th>
                 <th className="py-3.5 px-4">Recorded By</th>
                 <th className="py-3.5 px-4 text-center">Time</th>
@@ -213,13 +249,14 @@ export const Reports: React.FC = () => {
               {loading || !summary ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={7} className="p-4"><Skeleton className="h-4 w-full" /></td>
+                    <td colSpan={8} className="p-4"><Skeleton className="h-4 w-full" /></td>
                   </tr>
                 ))
               ) : summary.records.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400 text-sm">
-                    No transactions found for this date.
+                  <td colSpan={8} className="py-12 text-center text-slate-500 text-sm">
+                    <p className="font-semibold text-slate-700">No meal records found for {formattedDisplayDate}.</p>
+                    <p className="text-xs text-slate-400 mt-1">Select another date or record meals for this date to see data.</p>
                   </td>
                 </tr>
               ) : (
@@ -227,14 +264,15 @@ export const Reports: React.FC = () => {
                   <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{r.employeeCode}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900">{r.employeeName}</td>
+                    <td className="py-3.5 px-4 text-slate-700 font-medium text-xs">{r.position || 'Worker'}</td>
                     <td className="py-3.5 px-4 text-slate-600 text-xs">{r.department}</td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 text-center">
                       <Badge variant={r.mealStatus === 'ATE' ? 'success' : 'danger'}>
                         {r.mealStatus}
                       </Badge>
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                      {r.amount.toLocaleString()}
+                      {r.amount.toLocaleString()} {summary.currency}
                     </td>
                     <td className="py-3.5 px-4 text-slate-500 text-xs font-mono">{r.recordedBy}</td>
                     <td className="py-3.5 px-4 text-center text-slate-400 text-xs font-mono">

@@ -98,6 +98,7 @@ export interface MealRecord {
   employeeCode: string;
   employeeName: string;
   department: string;
+  position?: string;
   mealDate: string;
   mealStatus: MealStatus;
   amount: number;
