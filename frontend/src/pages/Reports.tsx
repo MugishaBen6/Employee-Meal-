@@ -17,8 +17,28 @@ import {
   Search,
 } from 'lucide-react';
 
+/** Returns today's date as YYYY-MM-DD in the Africa/Kigali timezone (UTC+2, no DST). */
+const getKigaliToday = (): string => {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(new Date());
+};
+
+/**
+ * Returns true only when `value` is a non-empty, well-formed YYYY-MM-DD string
+ * that also represents a real calendar date (e.g. rejects "2026-02-30").
+ */
+const isValidDateString = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(value + 'T00:00:00'); // parse as local midnight to avoid UTC shift
+  return (
+    !isNaN(d.getTime()) &&
+    d.getFullYear() === Number(value.slice(0, 4)) &&
+    d.getMonth() + 1 === Number(value.slice(5, 7)) &&
+    d.getDate() === Number(value.slice(8, 10))
+  );
+};
+
 export const Reports: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getKigaliToday());
   const [selectedDept, setSelectedDept] = useState<string>('');
   const [departments, setDepartments] = useState<string[]>([]);
   const [summary, setSummary] = useState<DailyReportSummary | null>(null);
@@ -53,6 +73,10 @@ export const Reports: React.FC = () => {
   };
 
   const fetchReportData = async () => {
+    if (!isValidDateString(selectedDate)) {
+      addToast('error', 'Please select a valid report date (YYYY-MM-DD) before generating the report.');
+      return;
+    }
     setLoading(true);
     try {
       const data = await reportApi.getDailyReport(selectedDate, selectedDept || undefined);
@@ -65,6 +89,10 @@ export const Reports: React.FC = () => {
   };
 
   const handleDownloadExcel = async () => {
+    if (!isValidDateString(selectedDate)) {
+      addToast('error', 'Please select a valid report date (YYYY-MM-DD) before exporting to Excel.');
+      return;
+    }
     setExportingExcel(true);
     try {
       await reportApi.downloadExcel(selectedDate, selectedDept || undefined);
@@ -77,6 +105,10 @@ export const Reports: React.FC = () => {
   };
 
   const handleDownloadPdf = async () => {
+    if (!isValidDateString(selectedDate)) {
+      addToast('error', 'Please select a valid report date (YYYY-MM-DD) before exporting to PDF.');
+      return;
+    }
     setExportingPdf(true);
     try {
       await reportApi.downloadPdf(selectedDate, selectedDept || undefined);
