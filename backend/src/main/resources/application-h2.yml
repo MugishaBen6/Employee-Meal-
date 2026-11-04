@@ -11,6 +11,13 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    # V7 creates PostgreSQL functional indexes (e.g. LOWER(username)) that H2
+    # cannot parse. V7 and V8 contain indexes only (no tables/columns), so the
+    # in-memory H2 schema is still complete and Hibernate "validate" passes.
+    # Production (PostgreSQL) is unaffected: this file is only loaded with the
+    # "h2" profile. Raise this target if a future migration changes the schema.
+    target: "6"
   h2:
     console:
       enabled: true

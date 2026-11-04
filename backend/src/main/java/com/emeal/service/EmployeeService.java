@@ -1,5 +1,7 @@
 package com.emeal.service;
 
+import com.emeal.config.BusinessTime;
+
 import com.emeal.dto.request.CreateEmployeeRequest;
 import com.emeal.dto.request.RecordMealRequest;
 import com.emeal.dto.request.UpdateEmployeeRequest;
@@ -78,7 +80,7 @@ public class EmployeeService {
     public EmployeeAttendancePageResponse getEmployeeAttendancePage(LocalDate date, String query, String department,
                                                                     String mealStatusFilter, EmployeeStatus status,
                                                                     int page, int size) {
-        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+        LocalDate targetDate = (date != null) ? date : BusinessTime.today();
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
         // 1. Calculate Top Summary Stats for the selected date
@@ -86,10 +88,8 @@ public class EmployeeService {
         long dayAteCount = mealRecordRepository.countByMealDateAndMealStatus(targetDate, MealStatus.ATE);
         long dayDidNotEatCount = mealRecordRepository.countByMealDateAndMealStatus(targetDate, MealStatus.DID_NOT_EAT);
 
+        // Always positive; a missing or invalid setting fails clearly in SettingsService.
         BigDecimal standardMealPrice = settingsService.getStandardMealPrice();
-        if (standardMealPrice == null || standardMealPrice.compareTo(BigDecimal.ZERO) == 0) {
-            standardMealPrice = new BigDecimal("600.00");
-        }
 
         BigDecimal dayMealCost = mealRecordRepository.sumAmountByMealDate(targetDate);
         if ((dayMealCost == null || dayMealCost.compareTo(BigDecimal.ZERO) == 0) && dayAteCount > 0) {
@@ -98,17 +98,16 @@ public class EmployeeService {
             dayMealCost = BigDecimal.ZERO;
         }
 
-        long totalMealsAteHistorical = mealRecordRepository.countTotalMealsAteForActiveEmployees();
-        long displayAteCount = (dayAteCount > 0 || dayDidNotEatCount > 0) ? dayAteCount : (totalMealsAteHistorical > 0 ? totalMealsAteHistorical : 0L);
-        BigDecimal displayMealCost = (dayAteCount > 0 || dayDidNotEatCount > 0) ? dayMealCost : BigDecimal.valueOf(displayAteCount).multiply(standardMealPrice);
-
+        // Summary reflects the selected date only. A day with no records shows real zeros
+        // (no substitution of all-time historical counts).
         EmployeeAttendanceSummaryDTO summary = EmployeeAttendanceSummaryDTO.builder()
                 .totalActiveEmployees(totalActiveEmployees)
-                .ateCount(displayAteCount)
+                .ateCount(dayAteCount)
                 .didNotEatCount(dayDidNotEatCount)
                 .notRecordedCount(Math.max(0, totalActiveEmployees - (dayAteCount + dayDidNotEatCount)))
-                .totalMealCost(displayMealCost)
+                .totalMealCost(dayMealCost)
                 .currency(currency)
+                .standardMealPrice(standardMealPrice)
                 .build();
 
         // 2. Fetch all employees matching query, department, status
@@ -147,8 +146,10 @@ public class EmployeeService {
 
         for (Employee emp : filteredEmployees) {
             MealRecord mr = recordMap.get(emp.getId());
-            String mStatus = "ATE";
-            BigDecimal amount = new BigDecimal("600.00");
+            // Show the real status for the selected date:
+            // ATE -> stored amount, DID_NOT_EAT -> 0, no record -> NOT_RECORDED (amount null, shown as "—").
+            String mStatus;
+            BigDecimal amount;
             Long mealRecordId = null;
             String recordedBy = null;
             java.time.LocalDateTime mealRecordedAt = null;
@@ -157,9 +158,18 @@ public class EmployeeService {
                 mealRecordId = mr.getId();
                 recordedBy = mr.getRecordedBy();
                 mealRecordedAt = mr.getCreatedAt();
-                if (mr.getAmount() != null && mr.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                    amount = mr.getAmount();
+                if (mr.getMealStatus() == MealStatus.ATE) {
+                    mStatus = "ATE";
+                    amount = (mr.getAmount() != null && mr.getAmount().compareTo(BigDecimal.ZERO) > 0)
+                            ? mr.getAmount()
+                            : standardMealPrice;
+                } else {
+                    mStatus = "DID_NOT_EAT";
+                    amount = BigDecimal.ZERO;
                 }
+            } else {
+                mStatus = "NOT_RECORDED";
+                amount = null;
             }
 
             // Apply mealStatusFilter if specified
@@ -283,7 +293,7 @@ public class EmployeeService {
 
         // If initial meal attendance is provided
         if (request.getMealStatus() != null) {
-            LocalDate date = (request.getMealDate() != null) ? request.getMealDate() : LocalDate.now();
+            LocalDate date = (request.getMealDate() != null) ? request.getMealDate() : BusinessTime.today();
 
             if (request.getMealStatus() == MealStatus.DID_NOT_EAT) {
                 if (request.getAmount() != null && request.getAmount().compareTo(BigDecimal.ZERO) > 0) {
@@ -292,7 +302,9 @@ public class EmployeeService {
             }
 
             BigDecimal mealAmount = (request.getMealStatus() == MealStatus.ATE)
-                    ? (request.getAmount() != null ? request.getAmount() : new BigDecimal("600.00"))
+                    ? (request.getAmount() != null && request.getAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? request.getAmount()
+                        : settingsService.getStandardMealPrice())
                     : BigDecimal.ZERO;
 
             RecordMealRequest mealReq = new RecordMealRequest();

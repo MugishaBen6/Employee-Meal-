@@ -66,7 +66,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/quick-search")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR', 'USER')")
     public ResponseEntity<ApiResponse<List<EmployeeDTO>>> quickSearch(@RequestParam String query) {
         List<EmployeeDTO> result = employeeService.quickSearch(query);
         return ResponseEntity.ok(ApiResponse.success("Quick search results", result));
@@ -79,7 +79,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR', 'USER')")
     public ResponseEntity<ApiResponse<EmployeeDTO>> getEmployeeById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Employee retrieved", employeeService.getEmployeeById(id)));
     }

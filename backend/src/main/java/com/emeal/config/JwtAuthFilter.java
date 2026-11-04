@@ -36,18 +36,30 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 String username = jwtUtils.getUsernameFromJwtToken(jwt);
 
+                // Loaded from the database on every request, so the CURRENT account
+                // status is enforced, not the status at the time the token was issued.
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()) {
+                    // INACTIVE / PENDING_APPROVAL / REJECTED: the token is no longer honoured.
+                    // Leaving the context unauthenticated makes protected endpoints return 401.
+                    logger.warn("Rejected JWT for non-active account '" + username + "'");
+                    SecurityContextHolder.clearContext();
+                } else {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e);
+            // Invalid signature, unknown/deleted user, etc. The request continues
+            // unauthenticated, so protected endpoints answer 401.
+            SecurityContextHolder.clearContext();
+            logger.warn("Cannot set user authentication: " + e.getClass().getSimpleName());
         }
 
         filterChain.doFilter(request, response);

@@ -1,5 +1,7 @@
 package com.emeal.service;
 
+import com.emeal.config.BusinessTime;
+
 import com.emeal.dto.excel.*;
 import com.emeal.entity.Employee;
 import com.emeal.entity.EmployeeStatus;
@@ -13,8 +15,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.emeal.security.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -150,11 +151,11 @@ public class ExcelImportService {
     public ExcelImportResultResponse importExcelDirect(MultipartFile file, LocalDate defaultDate) {
         validateFile(file);
 
-        LocalDate targetDate = (defaultDate != null) ? defaultDate : LocalDate.now();
+        LocalDate targetDate = (defaultDate != null) ? defaultDate : BusinessTime.today();
         int targetYear = targetDate.getYear();
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String recordedBy = (auth != null && auth.getName() != null) ? auth.getName() : "ADMIN";
+        // Attribute imported rows to the authenticated caller only; never fall back to a default identity.
+        String recordedBy = SecurityUtils.getCurrentUsername();
 
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             if (workbook.getNumberOfSheets() == 0) {
@@ -189,7 +190,7 @@ public class ExcelImportService {
     public ExcelImportPreviewResponse previewExcel(MultipartFile file, LocalDate defaultDate) {
         validateFile(file);
 
-        LocalDate targetDate = (defaultDate != null) ? defaultDate : LocalDate.now();
+        LocalDate targetDate = (defaultDate != null) ? defaultDate : BusinessTime.today();
         int targetYear = targetDate.getYear();
 
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
@@ -225,9 +226,9 @@ public class ExcelImportService {
             throw new BadRequestException("No employee rows provided for import.");
         }
 
-        LocalDate fallbackDate = (request.getMealDate() != null) ? request.getMealDate() : LocalDate.now();
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String recordedBy = (auth != null && auth.getName() != null) ? auth.getName() : "ADMIN";
+        LocalDate fallbackDate = (request.getMealDate() != null) ? request.getMealDate() : BusinessTime.today();
+        // Attribute imported rows to the authenticated caller only; never fall back to a default identity.
+        String recordedBy = SecurityUtils.getCurrentUsername();
 
         List<ExcelEmployeeRowDTO> validRows = request.getRows().stream()
                 .filter(r -> "VALID".equalsIgnoreCase(r.getStatus()) || r.getStatus() == null)
@@ -264,7 +265,7 @@ public class ExcelImportService {
             }
             boolean ate = "Ate".equalsIgnoreCase(r.getMealStatus()) || "ATE".equalsIgnoreCase(r.getMealStatus());
             MealStatus status = ate ? MealStatus.ATE : MealStatus.DID_NOT_EAT;
-            BigDecimal amount = ate ? (r.getAmountUsed() != null ? r.getAmountUsed() : new BigDecimal("600.00")) : BigDecimal.ZERO;
+            BigDecimal amount = ate ? positiveOrStandard(r.getAmountUsed()) : BigDecimal.ZERO;
             items.add(new ParsedMealItem(r.getEmployeeName(), date, status, amount, "Import", r.getRowNumber()));
         }
 
@@ -382,7 +383,7 @@ public class ExcelImportService {
                                         }
                                     } catch (Exception ignored) {}
                                 } else if (strVal.equalsIgnoreCase("ate") || strVal.equalsIgnoreCase("yes") || strVal.equals("1")) {
-                                    amount = new BigDecimal("600.00");
+                                    amount = settingsService.getStandardMealPrice();
                                     status = MealStatus.ATE;
                                 }
                             }
@@ -765,6 +766,14 @@ public class ExcelImportService {
                 .build();
     }
 
+    /** ATE rows must carry a positive amount; a missing or non-positive value uses the configured standard price. */
+    private BigDecimal positiveOrStandard(BigDecimal amount) {
+        if (amount != null && amount.compareTo(BigDecimal.ZERO) > 0) {
+            return amount;
+        }
+        return settingsService.getStandardMealPrice();
+    }
+
     private ExcelImportResultResponse processStandardRows(List<ExcelEmployeeRowDTO> rows, LocalDate defaultDate, String recordedBy) {
         List<ParsedMealItem> items = new ArrayList<>();
         for (ExcelEmployeeRowDTO r : rows) {
@@ -775,7 +784,7 @@ public class ExcelImportService {
                 }
                 boolean ate = "Ate".equalsIgnoreCase(r.getMealStatus()) || "ATE".equalsIgnoreCase(r.getMealStatus());
                 items.add(new ParsedMealItem(r.getEmployeeName(), date, ate ? MealStatus.ATE : MealStatus.DID_NOT_EAT,
-                        ate ? (r.getAmountUsed() != null ? r.getAmountUsed() : new BigDecimal("600.00")) : BigDecimal.ZERO,
+                        ate ? positiveOrStandard(r.getAmountUsed()) : BigDecimal.ZERO,
                         "Standard", r.getRowNumber()));
             }
         }
@@ -862,9 +871,9 @@ public class ExcelImportService {
                     month = parseMonth(sheetName);
                 }
                 if (month == 0) {
-                    month = LocalDate.now().getMonthValue();
+                    month = BusinessTime.today().getMonthValue();
                 }
-                int year = defaultYear > 0 ? defaultYear : LocalDate.now().getYear();
+                int year = defaultYear > 0 ? defaultYear : BusinessTime.today().getYear();
                 try {
                     return LocalDate.of(year, month, day);
                 } catch (Exception ignored) {}
@@ -878,7 +887,7 @@ public class ExcelImportService {
             int month = parseMonth(m2.group(1));
             int day = Integer.parseInt(m2.group(2));
             if (month > 0 && day >= 1 && day <= 31) {
-                int year = defaultYear > 0 ? defaultYear : LocalDate.now().getYear();
+                int year = defaultYear > 0 ? defaultYear : BusinessTime.today().getYear();
                 try {
                     return LocalDate.of(year, month, day);
                 } catch (Exception ignored) {}

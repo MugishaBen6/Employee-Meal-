@@ -102,7 +102,9 @@ public class Employee {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     public String getFullName() {
-        return firstName + " " + lastName;
+        String first = firstName != null ? firstName.trim() : "";
+        String last = lastName != null ? lastName.trim() : "";
+        return (first + " " + last).trim();
     }
 
     public static class EmployeeBuilder {

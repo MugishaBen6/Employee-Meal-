@@ -133,6 +133,24 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
             </plugin>
+            <!-- Mockito 5 inline-mocking requires these JDK add-opens in the test JVM.
+                 net.bytebuddy.experimental lets the Byte Buddy version managed by
+                 Spring Boot 3.2.5 instrument classes on JDKs newer than it officially
+                 supports (e.g. a local JDK 24). Production targets Java 17 and the
+                 Docker build uses -DskipTests, so none of this affects the runtime. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <argLine>
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.math=ALL-UNNAMED
+                        -Dnet.bytebuddy.experimental=true
+                    </argLine>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

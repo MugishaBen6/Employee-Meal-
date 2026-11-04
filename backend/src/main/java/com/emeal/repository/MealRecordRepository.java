@@ -43,6 +43,10 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE")
     long countTotalMealsAte();
 
+    /** Sum of stored amounts over all ATE records (every employee, any status). */
+    @Query("SELECT COALESCE(SUM(m.amount), 0) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE")
+    BigDecimal sumAmountAllAte();
+
     @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.mealStatus = com.emeal.entity.MealStatus.ATE AND m.employee.status = com.emeal.entity.EmployeeStatus.ACTIVE")
     long countTotalMealsAteForActiveEmployees();
 
@@ -82,4 +86,15 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
            "GROUP BY e.department " +
            "ORDER BY e.department ASC")
     List<Object[]> getDepartmentStatsForDate(@Param("date") LocalDate date);
+
+    // --- USER-role scoped queries (filtered by recorded_by) ---
+
+    @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.recordedBy = :recordedBy")
+    long countByRecordedBy(@Param("recordedBy") String recordedBy);
+
+    @Query("SELECT COUNT(m) FROM MealRecord m WHERE m.recordedBy = :recordedBy AND m.mealStatus = :status")
+    long countByRecordedByAndStatus(@Param("recordedBy") String recordedBy, @Param("status") MealStatus status);
+
+    @Query("SELECT COALESCE(SUM(m.amount), 0) FROM MealRecord m WHERE m.recordedBy = :recordedBy AND m.mealStatus = com.emeal.entity.MealStatus.ATE")
+    BigDecimal sumAmountByRecordedBy(@Param("recordedBy") String recordedBy);
 }

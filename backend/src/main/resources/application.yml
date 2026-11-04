@@ -53,7 +53,9 @@ app:
     password: ${MAIL_PASSWORD:}
     from: ${MAIL_FROM:noreply@company.com}
   meal:
-    default-price: 1500.00
+    # Informational only; not read by the code. The live price is the
+    # STANDARD_MEAL_PRICE row in the settings table (600.00 since migration V5).
+    default-price: 600.00
     currency: RWF
     timezone: Africa/Kigali
 

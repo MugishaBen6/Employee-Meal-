@@ -2,9 +2,13 @@ package com.emeal.service;
 
 import com.emeal.dto.response.SettingsDTO;
 import com.emeal.entity.Settings;
+import com.emeal.exception.BadRequestException;
+import com.emeal.exception.MisconfigurationException;
 import com.emeal.exception.ResourceNotFoundException;
 import com.emeal.repository.SettingsRepository;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +19,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class SettingsService {
+
+    private static final Logger log = LoggerFactory.getLogger(SettingsService.class);
+    public static final String STANDARD_MEAL_PRICE_KEY = "STANDARD_MEAL_PRICE";
 
     private final SettingsRepository settingsRepository;
     private final AuditLogService auditLogService;
@@ -74,20 +81,44 @@ public class SettingsService {
         return val != null ? val : defaultValue;
     }
 
+    /**
+     * The configured standard meal price (production: 600.00 RWF, set by migration V5).
+     *
+     * <p>Never silently substitutes a default: if the setting is missing, not a number,
+     * or not positive, the error is logged and a {@link MisconfigurationException} is
+     * thrown so no meal is charged with a guessed price.
+     */
     @Transactional(readOnly = true)
     public BigDecimal getStandardMealPrice() {
-        String val = getSettingValue("STANDARD_MEAL_PRICE", "600.00");
-        try {
-            return new BigDecimal(val);
-        } catch (Exception e) {
-            return new BigDecimal("600.00");
+        String val = getSettingValue(STANDARD_MEAL_PRICE_KEY, null);
+        if (val == null || val.isBlank()) {
+            log.error("Setting {} is missing; meal prices cannot be determined", STANDARD_MEAL_PRICE_KEY);
+            throw new MisconfigurationException(
+                    "The standard meal price is not configured. An administrator must set it in Settings.");
         }
+        BigDecimal price;
+        try {
+            price = new BigDecimal(val.trim());
+        } catch (NumberFormatException e) {
+            log.error("Setting {} has a non-numeric value '{}'", STANDARD_MEAL_PRICE_KEY, val);
+            throw new MisconfigurationException(
+                    "The standard meal price setting is invalid. An administrator must correct it in Settings.");
+        }
+        if (price.signum() <= 0) {
+            log.error("Setting {} must be positive but is '{}'", STANDARD_MEAL_PRICE_KEY, val);
+            throw new MisconfigurationException(
+                    "The standard meal price setting is invalid. An administrator must correct it in Settings.");
+        }
+        return price;
     }
 
     @Transactional
     public SettingsDTO updateSetting(String key, String newValue) {
         Settings setting = settingsRepository.findBySettingKey(key)
                 .orElseThrow(() -> new ResourceNotFoundException("Setting not found with key: " + key));
+        if (STANDARD_MEAL_PRICE_KEY.equals(key)) {
+            newValue = validateMealPrice(newValue);
+        }
 
         String oldValue = setting.getSettingValue();
         setting.setSettingValue(newValue);
@@ -101,6 +132,24 @@ public class SettingsService {
                 "Updated setting " + key + " from '" + oldValue + "' to '" + newValue + "'");
 
         return SettingsDTO.fromEntity(saved);
+    }
+
+    /** Rejects blank, non-numeric, zero and negative prices. Returns the trimmed value. */
+    private String validateMealPrice(String value) {
+        if (value == null || value.isBlank()) {
+            throw new BadRequestException("Standard meal price is required.");
+        }
+        String trimmed = value.trim();
+        BigDecimal price;
+        try {
+            price = new BigDecimal(trimmed);
+        } catch (NumberFormatException e) {
+            throw new BadRequestException("Standard meal price must be a number.");
+        }
+        if (price.signum() <= 0) {
+            throw new BadRequestException("Standard meal price must be greater than 0.");
+        }
+        return trimmed;
     }
 }
 

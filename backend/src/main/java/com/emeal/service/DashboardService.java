@@ -1,9 +1,13 @@
 package com.emeal.service;
 
+import com.emeal.config.BusinessTime;
+
 import com.emeal.dto.response.AuditLogDTO;
 import com.emeal.dto.response.DashboardStatsResponse;
 import com.emeal.dto.response.DepartmentMealStats;
 import com.emeal.dto.response.ExpenseChartData;
+import com.emeal.dto.response.UserDashboardStatsResponse;
+import com.emeal.security.SecurityUtils;
 import com.emeal.entity.Employee;
 import com.emeal.entity.EmployeeStatus;
 import com.emeal.entity.MealRecord;
@@ -39,7 +43,7 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStatistics() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessTime.today();
         LocalDate latestDate = mealRecordRepository.findLatestMealDate();
         LocalDate activeDate = (latestDate != null) ? latestDate : today;
 
@@ -106,20 +110,14 @@ public class DashboardService {
 
         long totalActiveEmployees = employeeRepository.countByStatus(EmployeeStatus.ACTIVE);
 
-        long totalMealsCount = mealRecordRepository.countTotalMealsAteForActiveEmployees();
-        if (totalMealsCount == 0) {
-            totalMealsCount = mealRecordRepository.countTotalMealsAte();
-        }
-        if (totalMealsCount == 0) {
-            totalMealsCount = 32L;
-        }
+        // All-time totals over every ATE record, including employees who were later
+        // deactivated. Cost is the sum of the amounts actually stored on each record,
+        // so historical prices are kept and a price change never re-values the past.
+        long totalMealsCount = mealRecordRepository.countTotalMealsAte();
+        BigDecimal totalExpenseCost = mealRecordRepository.sumAmountAllAte();
 
+        // Shown as the current rate only; not used for the totals above.
         BigDecimal standardMealPrice = settingsService.getStandardMealPrice();
-        if (standardMealPrice == null || standardMealPrice.compareTo(BigDecimal.ZERO) == 0) {
-            standardMealPrice = new BigDecimal("600.00");
-        }
-
-        BigDecimal totalExpenseCost = BigDecimal.valueOf(totalMealsCount).multiply(standardMealPrice);
 
         BigDecimal averageMealCostToday = (ateToday > 0)
                 ? todayTotalCost.divide(BigDecimal.valueOf(ateToday), 2, RoundingMode.HALF_UP)
@@ -209,5 +207,33 @@ public class DashboardService {
         }
 
         return stats;
+    }
+
+    @Transactional(readOnly = true)
+    public UserDashboardStatsResponse getCurrentUserStatistics() {
+        if (!SecurityUtils.isUserRole()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Personal meal statistics are available only to USER accounts.");
+        }
+
+        String username = SecurityUtils.getCurrentUsername();
+        long totalRecords = mealRecordRepository.countByRecordedBy(username);
+        long ateCount = mealRecordRepository.countByRecordedByAndStatus(username, MealStatus.ATE);
+        long didNotEatCount = mealRecordRepository.countByRecordedByAndStatus(username, MealStatus.DID_NOT_EAT);
+        BigDecimal totalAmount = mealRecordRepository.sumAmountByRecordedBy(username);
+        if (totalAmount == null) {
+            totalAmount = BigDecimal.ZERO;
+        }
+        String currency = settingsService.getSettingValue("CURRENCY", "RWF");
+
+        return UserDashboardStatsResponse.builder()
+                .username(username)
+                .totalRecords(totalRecords)
+                .ateCount(ateCount)
+                .didNotEatCount(didNotEatCount)
+                .totalAmount(totalAmount)
+                .currency(currency)
+                .standardMealPrice(settingsService.getStandardMealPrice())
+                .build();
     }
 }

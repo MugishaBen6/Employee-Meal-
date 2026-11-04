@@ -1,5 +1,7 @@
 package com.emeal.service;
 
+import com.emeal.config.BusinessTime;
+
 import com.emeal.dto.request.RecordMealRequest;
 import com.emeal.dto.request.UpdateMealRecordRequest;
 import com.emeal.dto.response.EmployeeDTO;
@@ -15,13 +17,12 @@ import com.emeal.exception.DuplicateResourceException;
 import com.emeal.exception.ResourceNotFoundException;
 import com.emeal.repository.EmployeeRepository;
 import com.emeal.repository.MealRecordRepository;
-import com.emeal.security.UserPrincipal;
+import com.emeal.security.SecurityUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,37 +55,27 @@ public class MealRecordService {
             throw new BadRequestException("Employee is deactivated and cannot be selected for new meal records");
         }
 
-        LocalDate targetDate = (request.getMealDate() != null) ? request.getMealDate() : LocalDate.now();
+        LocalDate targetDate = (request.getMealDate() != null) ? request.getMealDate() : BusinessTime.today();
 
         if (mealRecordRepository.existsByEmployeeIdAndMealDate(employee.getId(), targetDate)) {
             throw new DuplicateResourceException("A meal record already exists for " + employee.getFullName() + " on " + targetDate + ".");
         }
 
-        BigDecimal amount = request.getAmount();
-        if (request.getMealStatus() == MealStatus.DID_NOT_EAT) {
-            amount = BigDecimal.ZERO;
-        } else {
-            if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
-                amount = settingsService.getStandardMealPrice();
-                if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-                    amount = new BigDecimal("600.00");
-                }
-            }
-        }
-
-        String username = getCurrentUsername();
+        MealStatus status = request.getMealStatus() != null ? request.getMealStatus() : MealStatus.ATE;
+        BigDecimal amount = resolveAmount(status, request.getAmount());
+        String username = SecurityUtils.getCurrentUsername();
 
         MealRecord record = MealRecord.builder()
                 .employee(employee)
                 .mealDate(targetDate)
-                .mealStatus(request.getMealStatus() != null ? request.getMealStatus() : MealStatus.ATE)
+                .mealStatus(status)
                 .amount(amount)
                 .recordedBy(username)
                 .build();
 
         MealRecord saved = mealRecordRepository.save(record);
 
-        auditLogService.logAction("RECORD_MEAL", "MEAL_RECORD", saved.getId().toString(),
+        auditLogService.logActionSync("RECORD_MEAL", "MEAL_RECORD", saved.getId().toString(),
                 "Recorded meal status " + saved.getMealStatus() + " for employee " + employee.getEmployeeCode() +
                 " (" + employee.getFullName() + ") on " + targetDate + " with amount " + saved.getAmount() + " RWF");
 
@@ -93,7 +84,7 @@ public class MealRecordService {
 
     @Transactional(readOnly = true)
     public QuickMealCheckResponse quickCheck(String query, LocalDate targetDate) {
-        LocalDate date = (targetDate != null) ? targetDate : LocalDate.now();
+        LocalDate date = (targetDate != null) ? targetDate : BusinessTime.today();
         String q = query != null ? query.trim() : "";
 
         Employee employee = null;
@@ -116,7 +107,12 @@ public class MealRecordService {
 
         Optional<MealRecord> existingOpt = mealRecordRepository.findByEmployeeIdAndMealDate(employee.getId(), date);
         boolean alreadyRecorded = existingOpt.isPresent();
-        MealRecordDTO existingDTO = existingOpt.map(MealRecordDTO::fromEntity).orElse(null);
+        // A USER may learn that a record exists (duplicate prevention) but must not
+        // see the details of a record created by another account.
+        MealRecordDTO existingDTO = existingOpt
+                .filter(record -> !SecurityUtils.isUserRole() || ownsRecord(record))
+                .map(MealRecordDTO::fromEntity)
+                .orElse(null);
         BigDecimal defaultPrice = settingsService.getStandardMealPrice();
 
         return QuickMealCheckResponse.builder()
@@ -137,6 +133,13 @@ public class MealRecordService {
                                                          String recordedBy,
                                                          int page,
                                                          int size) {
+        final String ownerFilter;
+        if (SecurityUtils.isUserRole()) {
+            ownerFilter = SecurityUtils.getCurrentUsername();
+        } else {
+            ownerFilter = recordedBy;
+        }
+
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "mealDate", "id"));
 
         org.springframework.data.jpa.domain.Specification<MealRecord> spec = (root, q, cb) -> {
@@ -156,8 +159,12 @@ public class MealRecordService {
             if (status != null) {
                 predicates.add(cb.equal(root.get("mealStatus"), status));
             }
-            if (recordedBy != null && !recordedBy.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("recordedBy")), "%" + recordedBy.trim().toLowerCase() + "%"));
+            if (ownerFilter != null && !ownerFilter.isBlank()) {
+                if (SecurityUtils.isUserRole()) {
+                    predicates.add(cb.equal(root.get("recordedBy"), ownerFilter));
+                } else {
+                    predicates.add(cb.like(cb.lower(root.get("recordedBy")), "%" + ownerFilter.trim().toLowerCase() + "%"));
+                }
             }
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
@@ -169,8 +176,8 @@ public class MealRecordService {
 
     @Transactional(readOnly = true)
     public MealRecordDTO getMealRecordById(Long id) {
-        MealRecord record = mealRecordRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Meal record not found with id: " + id));
+        MealRecord record = findRecord(id);
+        assertCanView(record);
         return MealRecordDTO.fromEntity(record);
     }
 
@@ -179,39 +186,89 @@ public class MealRecordService {
         if (!employeeRepository.existsById(employeeId)) {
             throw new ResourceNotFoundException("Employee not found with id: " + employeeId);
         }
-        return mealRecordRepository.findByEmployeeIdOrderByMealDateDesc(employeeId)
-                .stream().map(MealRecordDTO::fromEntity).toList();
+        List<MealRecord> records = mealRecordRepository.findByEmployeeIdOrderByMealDateDesc(employeeId);
+        if (SecurityUtils.isUserRole()) {
+            String caller = SecurityUtils.getCurrentUsername();
+            records = records.stream()
+                    .filter(record -> caller.equals(record.getRecordedBy()))
+                    .toList();
+        }
+        return records.stream().map(MealRecordDTO::fromEntity).toList();
     }
 
     @Transactional
     public MealRecordDTO updateMealRecord(Long id, UpdateMealRecordRequest request) {
-        MealRecord record = mealRecordRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Meal record not found with id: " + id));
+        MealRecord record = findRecord(id);
+        assertCanEdit(record);
 
-        record.setMealStatus(request.getMealStatus());
-        BigDecimal amount = (request.getMealStatus() == MealStatus.DID_NOT_EAT)
-                ? BigDecimal.ZERO
-                : (request.getAmount() != null ? request.getAmount() : settingsService.getStandardMealPrice());
-        record.setAmount(amount);
+        MealStatus prevStatus = record.getMealStatus();
+        BigDecimal prevAmount = record.getAmount();
+        String prevRecordedBy = record.getRecordedBy();
+
+        MealStatus newStatus = request.getMealStatus();
+        BigDecimal newAmount = resolveAmount(newStatus, request.getAmount());
+
+        record.setMealStatus(newStatus);
+        record.setAmount(newAmount);
+        record.setRecordedBy(prevRecordedBy);
         MealRecord updated = mealRecordRepository.save(record);
 
-        auditLogService.logAction("UPDATE_MEAL_RECORD", "MEAL_RECORD", updated.getId().toString(),
+        auditLogService.logActionSync("UPDATE_MEAL_RECORD", "MEAL_RECORD", updated.getId().toString(),
                 "Updated meal record ID " + id + " for employee " + record.getEmployee().getEmployeeCode() +
                 " (" + record.getEmployee().getFullName() + ") on " + record.getMealDate() +
-                ": status=" + request.getMealStatus() + ", amount=" + amount + " RWF");
+                " | PREVIOUS: status=" + prevStatus + ", amount=" + prevAmount + " RWF, recordedBy=" + prevRecordedBy +
+                " | NEW: status=" + newStatus + ", amount=" + newAmount + " RWF, recordedBy=" + updated.getRecordedBy());
 
         return MealRecordDTO.fromEntity(updated);
     }
 
     @Transactional
     public void deleteMealRecord(Long id) {
-        MealRecord record = mealRecordRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Meal record not found with id: " + id));
+        if (SecurityUtils.isUserRole()) {
+            throw new AccessDeniedException("USER accounts cannot delete meal records.");
+        }
+        MealRecord record = findRecord(id);
 
         mealRecordRepository.delete(record);
 
-        auditLogService.logAction("DELETE_MEAL_RECORD", "MEAL_RECORD", id.toString(),
+        auditLogService.logActionSync("DELETE_MEAL_RECORD", "MEAL_RECORD", id.toString(),
                 "Deleted meal record ID " + id + " for employee " + record.getEmployee().getEmployeeCode());
+    }
+
+    private MealRecord findRecord(Long id) {
+        return mealRecordRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Meal record not found with id: " + id));
+    }
+
+    private void assertCanView(MealRecord record) {
+        if (SecurityUtils.isUserRole() && !ownsRecord(record)) {
+            throw new AccessDeniedException("Access denied: you can only view your own meal records.");
+        }
+    }
+
+    private void assertCanEdit(MealRecord record) {
+        if (SecurityUtils.isUserRole() && !ownsRecord(record)) {
+            throw new AccessDeniedException("Access denied: you can only edit your own meal records.");
+        }
+    }
+
+    private boolean ownsRecord(MealRecord record) {
+        return SecurityUtils.getCurrentUsername().equals(record.getRecordedBy());
+    }
+
+    private BigDecimal resolveAmount(MealStatus status, BigDecimal requestedAmount) {
+        if (status == MealStatus.DID_NOT_EAT) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal amount = requestedAmount;
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            amount = settingsService.getStandardMealPrice();
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("ATE records must have a valid positive amount.");
+        }
+        return amount;
     }
 
     private Long parseId(String val) {
@@ -220,13 +277,5 @@ public class MealRecordService {
         } catch (NumberFormatException e) {
             return -1L;
         }
-    }
-
-    private String getCurrentUsername() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof UserPrincipal principal) {
-            return principal.getUsername();
-        }
-        return "admin";
     }
 }

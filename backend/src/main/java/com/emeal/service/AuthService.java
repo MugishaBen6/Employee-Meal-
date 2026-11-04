@@ -17,6 +17,7 @@ import com.emeal.exception.DuplicateResourceException;
 import com.emeal.exception.ResourceNotFoundException;
 import com.emeal.repository.PasswordResetTokenRepository;
 import com.emeal.repository.UserRepository;
+import com.emeal.security.AdminBootstrapLock;
 import com.emeal.security.UserPrincipal;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -44,6 +45,7 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
+    private final AdminBootstrapLock adminBootstrapLock;
 
     public AuthService(AuthenticationManager authenticationManager,
                        UserRepository userRepository,
@@ -51,7 +53,9 @@ public class AuthService {
                        PasswordEncoder passwordEncoder,
                        JwtUtils jwtUtils,
                        EmailService emailService,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       AdminBootstrapLock adminBootstrapLock) {
+        this.adminBootstrapLock = adminBootstrapLock;
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -75,6 +79,9 @@ public class AuthService {
             throw new DuplicateResourceException("Email '" + request.getEmail() + "' is already registered");
         }
 
+        // Serialize the "is this the first admin?" check with the insert (held until commit),
+        // so simultaneous requests cannot all become ACTIVE administrators.
+        adminBootstrapLock.acquire();
         boolean isFirstAdmin = isInitialAdminSetupNeeded();
         UserStatus status = isFirstAdmin ? UserStatus.ACTIVE : UserStatus.PENDING_APPROVAL;
 
@@ -110,6 +117,10 @@ public class AuthService {
         }
 
         Role targetRole = request.getRole() != null ? request.getRole() : Role.HR;
+        if (targetRole == Role.ADMIN) {
+            // Same lock as setupInitialAdmin(): only one ADMIN creation decides "first admin" at a time.
+            adminBootstrapLock.acquire();
+        }
         boolean isFirstAdmin = (targetRole == Role.ADMIN && isInitialAdminSetupNeeded());
         UserStatus status = isFirstAdmin ? UserStatus.ACTIVE : UserStatus.PENDING_APPROVAL;
 

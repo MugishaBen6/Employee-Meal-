@@ -1,5 +1,7 @@
 package com.emeal.service;
 
+import com.emeal.config.BusinessTime;
+
 import com.emeal.dto.response.ExpenseChartData;
 import com.emeal.repository.EmployeeRepository;
 import com.emeal.repository.MealRecordRepository;
@@ -29,7 +31,7 @@ public class ExpenseService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getExpenseSummary() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessTime.today();
         LocalDate latestDate = mealRecordRepository.findLatestMealDate();
         LocalDate activeDate = (latestDate != null) ? latestDate : today;
 

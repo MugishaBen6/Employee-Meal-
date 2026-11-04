@@ -2,6 +2,7 @@ package com.emeal.controller;
 
 import com.emeal.dto.response.ApiResponse;
 import com.emeal.dto.response.DashboardStatsResponse;
+import com.emeal.dto.response.UserDashboardStatsResponse;
 import com.emeal.service.DashboardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,5 +25,12 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<DashboardStatsResponse>> getDashboardStatistics() {
         DashboardStatsResponse stats = dashboardService.getDashboardStatistics();
         return ResponseEntity.ok(ApiResponse.success("Dashboard statistics retrieved", stats));
+    }
+
+    @GetMapping("/my-stats")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<UserDashboardStatsResponse>> getMyDashboardStatistics() {
+        UserDashboardStatsResponse stats = dashboardService.getCurrentUserStatistics();
+        return ResponseEntity.ok(ApiResponse.success("Personal meal statistics retrieved", stats));
     }
 }

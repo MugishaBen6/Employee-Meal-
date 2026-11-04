@@ -1,5 +1,7 @@
 package com.emeal.controller;
 
+import com.emeal.config.BusinessTime;
+
 import com.emeal.dto.response.ApiResponse;
 import com.emeal.dto.response.DailyReportSummaryDTO;
 import com.emeal.service.ReportService;
@@ -40,7 +42,7 @@ public class ReportController {
     public ResponseEntity<byte[]> downloadDailyExcel(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String department) throws IOException {
-        LocalDate reportDate = (date != null) ? date : LocalDate.now();
+        LocalDate reportDate = (date != null) ? date : BusinessTime.today();
         byte[] excelBytes = reportService.generateDailyExcelReport(reportDate, department);
 
         String filename = "Daily_Meal_Report_" + reportDate + ".xlsx";
@@ -56,7 +58,7 @@ public class ReportController {
     public ResponseEntity<byte[]> downloadDailyPdf(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String department) {
-        LocalDate reportDate = (date != null) ? date : LocalDate.now();
+        LocalDate reportDate = (date != null) ? date : BusinessTime.today();
         byte[] pdfBytes = reportService.generateDailyPdfReport(reportDate, department);
 
         String filename = "Daily_Meal_Report_" + reportDate + ".pdf";

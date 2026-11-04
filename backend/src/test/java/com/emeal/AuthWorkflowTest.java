@@ -12,6 +12,7 @@ import com.emeal.entity.Role;
 import com.emeal.entity.User;
 import com.emeal.entity.UserStatus;
 import com.emeal.exception.BadRequestException;
+import com.emeal.exception.DuplicateResourceException;
 import com.emeal.repository.PasswordResetTokenRepository;
 import com.emeal.repository.UserRepository;
 import com.emeal.service.AuthService;
@@ -47,7 +48,7 @@ public class AuthWorkflowTest {
     }
 
     @Test
-    void testInitialAdminSetup_Success_AndSubsequentAttemptLocked() {
+    void testInitialAdminSetup_Success_AndSubsequentAdminsRequireApproval() {
         assertTrue(authService.isInitialAdminSetupNeeded());
 
         SetupAdminRequest request = new SetupAdminRequest();
@@ -65,8 +66,35 @@ public class AuthWorkflowTest {
 
         assertFalse(authService.isInitialAdminSetupNeeded());
 
-        // Subsequent attempt must be locked
-        assertThrows(BadRequestException.class, () -> authService.setupInitialAdmin(request));
+        // Security rule since commit 11d73cd: once an admin exists, /auth/setup-admin no longer
+        // grants an active admin. It becomes "Create Admin Account" (same as /auth/register with
+        // role ADMIN): the account is PENDING_APPROVAL and cannot log in until an existing admin
+        // approves it. Both DuplicateResourceException and BadRequestException map to HTTP 400.
+
+        // Repeating the same request cannot create or overwrite an account.
+        assertThrows(DuplicateResourceException.class, () -> authService.setupInitialAdmin(request));
+
+        // A different person using the setup page after initial setup gets no active admin access.
+        SetupAdminRequest second = new SetupAdminRequest();
+        second.setFirstName("Second");
+        second.setLastName("Admin");
+        second.setUsername("secondadmin");
+        second.setEmail("second@company.com");
+        second.setPassword("Secret456!");
+
+        UserDTO pending = authService.setupInitialAdmin(second);
+        assertEquals(Role.ADMIN, pending.getRole());
+        assertEquals(UserStatus.PENDING_APPROVAL, pending.getStatus());
+
+        BadRequestException loginBlocked = assertThrows(BadRequestException.class,
+                () -> authService.login(new LoginRequest("secondadmin", "Secret456!")));
+        assertTrue(loginBlocked.getMessage().contains("pending administrator approval"));
+
+        // Still exactly one ACTIVE admin: the original master admin.
+        long activeAdmins = userRepository.findAll().stream()
+                .filter(u -> u.getRole() == Role.ADMIN && u.getStatus() == UserStatus.ACTIVE)
+                .count();
+        assertEquals(1, activeAdmins);
     }
 
     @Test

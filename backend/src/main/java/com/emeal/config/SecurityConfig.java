@@ -1,7 +1,12 @@
 package com.emeal.config;
 
+import com.emeal.dto.response.ApiResponse;
 import com.emeal.security.CustomUserDetailsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -16,6 +21,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -23,10 +31,13 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
+    private final ObjectMapper objectMapper;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter,
+                          ObjectMapper objectMapper) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -58,11 +69,29 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 );
 
+        // 401 = no valid authentication (missing, invalid, expired token or inactive account).
+        // 403 = authenticated but not allowed. Both return the standard ApiResponse JSON body
+        // with a fixed message, never exception details.
+        http.exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                        writeError(response, HttpStatus.UNAUTHORIZED,
+                                "Authentication required. Please log in again."))
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                        writeError(response, HttpStatus.FORBIDDEN,
+                                "Access denied. You do not have permission to perform this action.")));
+
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
 
         return http.build();
+    }
+
+    private void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        objectMapper.writeValue(response.getOutputStream(), ApiResponse.error(message));
     }
 }

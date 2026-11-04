@@ -10,6 +10,7 @@ public class EmployeeAttendanceSummaryDTO {
     private long notRecordedCount;
     private BigDecimal totalMealCost;
     private String currency;
+    private BigDecimal standardMealPrice;
 
     public EmployeeAttendanceSummaryDTO() {
     }
@@ -46,6 +47,9 @@ public class EmployeeAttendanceSummaryDTO {
     public String getCurrency() { return currency; }
     public void setCurrency(String currency) { this.currency = currency; }
 
+    public BigDecimal getStandardMealPrice() { return standardMealPrice; }
+    public void setStandardMealPrice(BigDecimal standardMealPrice) { this.standardMealPrice = standardMealPrice; }
+
     public static class EmployeeAttendanceSummaryDTOBuilder {
         private long totalActiveEmployees;
         private long ateCount;
@@ -53,6 +57,7 @@ public class EmployeeAttendanceSummaryDTO {
         private long notRecordedCount;
         private BigDecimal totalMealCost;
         private String currency;
+        private BigDecimal standardMealPrice;
 
         EmployeeAttendanceSummaryDTOBuilder() {}
 
@@ -86,9 +91,16 @@ public class EmployeeAttendanceSummaryDTO {
             return this;
         }
 
+        public EmployeeAttendanceSummaryDTOBuilder standardMealPrice(BigDecimal standardMealPrice) {
+            this.standardMealPrice = standardMealPrice;
+            return this;
+        }
+
         public EmployeeAttendanceSummaryDTO build() {
-            return new EmployeeAttendanceSummaryDTO(totalActiveEmployees, ateCount, didNotEatCount,
-                    notRecordedCount, totalMealCost, currency);
+            EmployeeAttendanceSummaryDTO dto = new EmployeeAttendanceSummaryDTO(totalActiveEmployees, ateCount,
+                    didNotEatCount, notRecordedCount, totalMealCost, currency);
+            dto.setStandardMealPrice(standardMealPrice);
+            return dto;
         }
     }
 }

@@ -12,10 +12,14 @@ import com.emeal.repository.EmployeeRepository;
 import com.emeal.repository.MealRecordRepository;
 import com.emeal.service.EmployeeService;
 import com.emeal.service.MealRecordService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,8 +48,21 @@ public class EmployeeAttendanceTest {
 
     @BeforeEach
     void setUp() {
+        // MealRecordService.recordMeal() calls SecurityUtils.getCurrentUsername(),
+        // which now throws if no authenticated principal exists in the context.
+        // Set up a test ADMIN user so meal recording works correctly in tests.
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                "testadmin", null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
         mealRecordRepository.deleteAll();
         employeeRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test

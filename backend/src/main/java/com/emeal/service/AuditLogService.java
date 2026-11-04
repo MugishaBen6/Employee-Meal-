@@ -34,6 +34,19 @@ public class AuditLogService {
     @org.springframework.scheduling.annotation.Async
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void logAction(String action, String entityType, String entityId, String description) {
+        persistLog(action, entityType, entityId, description);
+    }
+
+    /**
+     * Writes an audit row in the caller's transaction so a meal update and its
+     * audit entry either both commit or both roll back.
+     */
+    @Transactional
+    public void logActionSync(String action, String entityType, String entityId, String description) {
+        persistLog(action, entityType, entityId, description);
+    }
+
+    private void persistLog(String action, String entityType, String entityId, String description) {
         String username = "SYSTEM";
         String userRole = "SYSTEM";
         Long userId = null;
@@ -45,6 +58,12 @@ public class AuditLogService {
             userRole = principal.getAuthorities().stream()
                     .map(a -> a.getAuthority().replace("ROLE_", ""))
                     .findFirst().orElse("UNKNOWN");
+        } else if (auth != null && auth.isAuthenticated()) {
+            username = auth.getName();
+            userRole = auth.getAuthorities().stream()
+                    .map(a -> a.getAuthority().replace("ROLE_", ""))
+                    .findFirst()
+                    .orElse("UNKNOWN");
         }
 
         AuditLog log = AuditLog.builder()
