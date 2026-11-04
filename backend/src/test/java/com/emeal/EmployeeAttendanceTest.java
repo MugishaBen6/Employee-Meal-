@@ -113,7 +113,7 @@ public class EmployeeAttendanceTest {
         meal2.setAmount(BigDecimal.ZERO);
         mealRecordService.recordMeal(meal2);
 
-        // EMP003 has NO record for testDate (NOT_RECORDED)
+        // EMP003 has NO record for testDate: shown as ATE at the standard price (display default)
 
         // 4. Query Attendance endpoint service for testDate
         EmployeeAttendancePageResponse response = employeeService.getEmployeeAttendancePage(
@@ -147,8 +147,9 @@ public class EmployeeAttendanceTest {
 
         EmployeeAttendanceDTO row3 = list.stream().filter(e -> e.getEmployeeCode().equals("EMP003")).findFirst().orElseThrow();
         assertEquals("Alice Uwase", row3.getFullName());
-        assertEquals("NOT_RECORDED", row3.getMealStatus());
-        assertNull(row3.getAmount());
+        assertEquals("ATE", row3.getMealStatus());
+        assertEquals(0, new BigDecimal("600.00").compareTo(row3.getAmount()));
+        assertNull(row3.getMealRecordId(), "display default only, nothing stored");
     }
 
     @Test
@@ -290,7 +291,7 @@ public class EmployeeAttendanceTest {
         assertEquals("DID_NOT_EAT", row31.getMealStatus());
         assertEquals(0, BigDecimal.ZERO.compareTo(row31.getAmount()));
 
-        // TEST 4: When selected date has NO record (2026-09-01) -> MUST show NOT_RECORDED
+        // TEST 4: When selected date has NO record (2026-09-01) -> shown as ATE, 600 RWF (no record stored)
         EmployeeAttendancePageResponse respNoRecord = employeeService.getEmployeeAttendancePage(
                 dateNoRecord, null, null, null, null, 0, 10);
         EmployeeAttendanceDTO rowNoRecord = respNoRecord.getEmployees().getContent().stream()
@@ -298,7 +299,8 @@ public class EmployeeAttendanceTest {
                 .findFirst().orElseThrow();
         assertEquals("Abel", rowNoRecord.getFullName());
         assertEquals("Worker", rowNoRecord.getPosition());
-        assertEquals("NOT_RECORDED", rowNoRecord.getMealStatus());
-        assertNull(rowNoRecord.getAmount());
+        assertEquals("ATE", rowNoRecord.getMealStatus());
+        assertEquals(0, new BigDecimal("600.00").compareTo(rowNoRecord.getAmount()));
+        assertNull(rowNoRecord.getMealRecordId());
     }
 }

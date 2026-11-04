@@ -147,8 +147,10 @@ public class EmployeeService {
 
         for (Employee emp : filteredEmployees) {
             MealRecord mr = recordMap.get(emp.getId());
-            // Show the real status for the selected date:
-            // ATE -> stored amount, DID_NOT_EAT -> 0, no record -> NOT_RECORDED (amount null, shown as "—").
+            // Status shown for the selected date:
+            // ATE record -> stored amount, DID_NOT_EAT record -> 0,
+            // no record -> shown as ATE at the standard meal price (display default only;
+            // nothing is stored, mealRecordId stays null).
             String mStatus;
             BigDecimal amount;
             Long mealRecordId = null;
@@ -169,8 +171,8 @@ public class EmployeeService {
                     amount = BigDecimal.ZERO;
                 }
             } else {
-                mStatus = "NOT_RECORDED";
-                amount = null;
+                mStatus = "ATE";
+                amount = standardMealPrice;
             }
 
             // Apply mealStatusFilter if specified
