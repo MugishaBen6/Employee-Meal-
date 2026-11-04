@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { dashboardApi } from '../api/dashboardApi';
 import { mealApi } from '../api/mealApi';
-import { MealRecord, MealStatus, UserDashboardStats } from '../types';
+import { employeeApi } from '../api/employeeApi';
+import { Employee, MealRecord, MealStatus, QuickMealCheckResponse, UserDashboardStats } from '../types';
 import { getKigaliToday } from '../utils/dateUtils';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -17,7 +17,8 @@ import {
   AlertCircle,
   DollarSign,
   List,
-  ArrowRight,
+  Plus,
+  Search,
   RefreshCw,
   Edit3,
 } from 'lucide-react';
@@ -34,6 +35,19 @@ const UserDashboard: React.FC = () => {
   const [editAmount, setEditAmount] = useState<number>(0);
   const [savingEdit, setSavingEdit] = useState(false);
   const [statsError, setStatsError] = useState(false);
+
+  // "Add Meal Record" form. The amount is never typed: the backend sets ATE to the
+  // configured standard price and DID_NOT_EAT to 0, and records the logged-in user as owner.
+  const [addOpen, setAddOpen] = useState(false);
+  const [addDate, setAddDate] = useState<string>(getKigaliToday());
+  const [addStatus, setAddStatus] = useState<MealStatus>('ATE');
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<Employee[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [duplicateCheck, setDuplicateCheck] = useState<QuickMealCheckResponse | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [savingAdd, setSavingAdd] = useState(false);
 
   const addToast = (type: ToastMessage['type'], message: string) => {
     const id = Date.now().toString();
@@ -92,31 +106,139 @@ const UserDashboard: React.FC = () => {
     }
   }, [selectedDate, fetchRecords]);
 
+  // ---------- Add Meal Record ----------
+
+  const resetAddForm = (keepDateAndStatus: boolean) => {
+    setEmployeeQuery('');
+    setSuggestions([]);
+    setSelectedEmployee(null);
+    setDuplicateCheck(null);
+    if (!keepDateAndStatus) {
+      setAddDate(getKigaliToday());
+      setAddStatus('ATE');
+    }
+  };
+
+  const openAdd = () => {
+    resetAddForm(false);
+    setAddOpen(true);
+  };
+
+  // Employee search (active employees only), debounced.
+  useEffect(() => {
+    if (!addOpen || selectedEmployee) return;
+    const q = employeeQuery.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const list = await employeeApi.quickSearch(q);
+        setSuggestions((list ?? []).filter((e) => e.status === 'ACTIVE'));
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [employeeQuery, addOpen, selectedEmployee]);
+
+  // Duplicate check for the selected employee and date (one record per employee per day).
+  useEffect(() => {
+    if (!addOpen || !selectedEmployee || !addDate) {
+      setDuplicateCheck(null);
+      return;
+    }
+    let cancelled = false;
+    setChecking(true);
+    mealApi
+      .quickCheck(selectedEmployee.id.toString(), addDate)
+      .then((res) => { if (!cancelled) setDuplicateCheck(res); })
+      .catch(() => { if (!cancelled) setDuplicateCheck(null); })
+      .finally(() => { if (!cancelled) setChecking(false); });
+    return () => { cancelled = true; };
+  }, [addOpen, selectedEmployee, addDate]);
+
+  const addPrice =
+    duplicateCheck && Number(duplicateCheck.defaultMealPrice) > 0
+      ? Number(duplicateCheck.defaultMealPrice)
+      : standardPrice;
+  const alreadyRecorded = !!duplicateCheck?.alreadyRecordedToday;
+  // For USER accounts the backend only returns the existing record if this user created it.
+  const ownExistingRecord = duplicateCheck?.todayRecord ?? null;
+
+  const handleAddRecord = async (keepOpen: boolean) => {
+    if (!selectedEmployee) {
+      addToast('error', 'Select an employee first.');
+      return;
+    }
+    if (!addDate || addDate > getKigaliToday()) {
+      addToast('error', 'Select a meal date that is today or earlier.');
+      return;
+    }
+    if (alreadyRecorded) {
+      addToast('error', 'This employee already has a meal record for this date.');
+      return;
+    }
+    setSavingAdd(true);
+    try {
+      const res = await mealApi.recordMeal({
+        employeeId: selectedEmployee.id,
+        mealDate: addDate,
+        mealStatus: addStatus,
+      });
+      const saved = res.data;
+      const amountText = `${Number(saved?.amount ?? 0).toLocaleString()} ${stats?.currency ?? 'RWF'}`;
+      addToast(
+        'success',
+        `${selectedEmployee.fullName}: ${addStatus === 'ATE' ? 'ATE' : 'DID NOT EAT'} recorded for ${addDate} (${amountText}).`
+      );
+      fetchStats();
+      if (addDate === selectedDate) {
+        fetchRecords(selectedDate);
+      } else {
+        setSelectedDate(addDate); // shows the day that was just recorded
+      }
+      if (keepOpen) {
+        resetAddForm(true);
+      } else {
+        setAddOpen(false);
+      }
+    } catch (err: any) {
+      addToast('error', err.response?.data?.message || 'Failed to record the meal.');
+    } finally {
+      setSavingAdd(false);
+    }
+  };
+
+  // ---------- Edit own record ----------
+
   const openEdit = (record: MealRecord) => {
     setEditingRecord(record);
     setEditStatus(record.mealStatus);
     setEditAmount(record.mealStatus === 'DID_NOT_EAT' ? 0 : Number(record.amount ?? 0));
   };
 
+  // The amount follows the pricing rules (the backend enforces the same for USER accounts):
+  // DID_NOT_EAT is 0; an ATE record keeps its stored amount; changing to ATE uses the standard price.
   const handleStatusChange = (status: MealStatus) => {
     setEditStatus(status);
     if (status === 'DID_NOT_EAT') {
       setEditAmount(0);
-    } else if (editAmount <= 0) {
-      // Use the admin-configured standard price (loaded from Settings API).
-      // If still loading (undefined) leave at 0 — the save guard below will
-      // catch it and show an error rather than sending a wrong amount.
-      if (standardPrice !== undefined && standardPrice > 0) {
-        setEditAmount(standardPrice);
-      }
-      // else: leave editAmount at 0; handleSaveEdit will reject with a clear message
+    } else if (editingRecord?.mealStatus === 'ATE' && Number(editingRecord.amount) > 0) {
+      setEditAmount(Number(editingRecord.amount));
+    } else {
+      setEditAmount(standardPrice ?? 0);
     }
   };
 
   const handleSaveEdit = async () => {
     if (!editingRecord) return;
     if (editStatus === 'ATE' && (!editAmount || editAmount <= 0)) {
-      addToast('error', 'ATE records must have a valid positive amount.');
+      addToast('error', 'The standard meal price could not be loaded. Refresh and try again.');
       return;
     }
 
@@ -200,13 +322,10 @@ const UserDashboard: React.FC = () => {
             <RefreshCw className="w-4 h-4" />
             Refresh
           </Button>
-          <Link to="/meals">
-            <Button size="sm" className="flex items-center gap-1.5">
-              <Utensils className="w-4 h-4" />
-              Record Meal
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          <Button size="sm" onClick={openAdd} className="flex items-center gap-1.5">
+            <Plus className="w-4 h-4" />
+            Add Meal Record
+          </Button>
         </div>
       </div>
 
@@ -272,12 +391,10 @@ const UserDashboard: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-12 text-slate-500">
             <Utensils className="w-8 h-8 mb-2 opacity-40" />
             <p className="text-sm">No meal records found for this date.</p>
-            <Link to="/meals" className="mt-3">
-              <Button size="sm" variant="secondary" className="flex items-center gap-1.5">
-                <Utensils className="w-4 h-4" />
-                Record a Meal
-              </Button>
-            </Link>
+            <Button size="sm" variant="secondary" onClick={openAdd} className="mt-3 flex items-center gap-1.5">
+              <Plus className="w-4 h-4" />
+              Add Meal Record
+            </Button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -343,12 +460,13 @@ const UserDashboard: React.FC = () => {
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Amount Used</label>
             <input
-              type="number"
-              disabled={editStatus === 'DID_NOT_EAT'}
-              value={editStatus === 'DID_NOT_EAT' ? 0 : editAmount}
-              onChange={(e) => setEditAmount(Number(e.target.value))}
+              type="text"
+              readOnly
+              disabled
+              value={`${(editStatus === 'DID_NOT_EAT' ? 0 : editAmount).toLocaleString()} ${stats?.currency ?? 'RWF'}`}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm disabled:bg-slate-100"
             />
+            <p className="text-[11px] text-slate-400 mt-1">Calculated automatically: standard meal price for ATE, 0 for DID NOT EAT.</p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setEditingRecord(null)}>
@@ -356,6 +474,163 @@ const UserDashboard: React.FC = () => {
             </Button>
             <Button onClick={handleSaveEdit} isLoading={savingEdit}>
               Save Changes
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Meal Record">
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="add-meal-date" className="block text-xs font-semibold text-slate-700 mb-1">Meal Date</label>
+            <input
+              id="add-meal-date"
+              type="date"
+              value={addDate}
+              max={getKigaliToday()}
+              onChange={(e) => setAddDate(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="add-employee" className="block text-xs font-semibold text-slate-700 mb-1">Employee</label>
+            {selectedEmployee ? (
+              <div className="flex items-center justify-between gap-2 border border-indigo-200 bg-indigo-50/60 rounded-xl px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{selectedEmployee.fullName}</p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {selectedEmployee.employeeCode} • {selectedEmployee.position || 'Worker'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => resetAddForm(true)}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 shrink-0"
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  id="add-employee"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="Search by name, code or phone"
+                  value={employeeQuery}
+                  onChange={(e) => setEmployeeQuery(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-sm"
+                />
+                {(searching || suggestions.length > 0 || employeeQuery.trim().length >= 2) && (
+                  <div className="mt-1 max-h-56 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-white">
+                    {searching ? (
+                      <p className="px-3 py-2 text-xs text-slate-500">Searching…</p>
+                    ) : suggestions.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-slate-500">No active employee found.</p>
+                    ) : (
+                      suggestions.map((emp) => (
+                        <button
+                          key={emp.id}
+                          type="button"
+                          onClick={() => { setSelectedEmployee(emp); setSuggestions([]); }}
+                          className="w-full text-left px-3 py-2 hover:bg-slate-50"
+                        >
+                          <p className="text-sm font-medium text-slate-900">{emp.fullName}</p>
+                          <p className="text-xs text-slate-500">{emp.employeeCode} • {emp.position || 'Worker'}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <span className="block text-xs font-semibold text-slate-700 mb-1">Meal Status</span>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAddStatus('ATE')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                  addStatus === 'ATE'
+                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                ATE
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddStatus('DID_NOT_EAT')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold ${
+                  addStatus === 'DID_NOT_EAT'
+                    ? 'bg-rose-600 border-rose-600 text-white'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <AlertCircle className="w-4 h-4" />
+                DID NOT EAT
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <span className="block text-xs font-semibold text-slate-700 mb-1">Amount Used</span>
+            <p className="w-full border border-slate-200 bg-slate-100 rounded-xl px-3 py-2 text-sm text-slate-700">
+              {addStatus === 'DID_NOT_EAT'
+                ? `0 ${stats?.currency ?? 'RWF'}`
+                : addPrice
+                ? `${addPrice.toLocaleString()} ${stats?.currency ?? 'RWF'}`
+                : 'Standard meal price'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">Calculated automatically: standard meal price for ATE, 0 for DID NOT EAT.</p>
+          </div>
+
+          {selectedEmployee && checking && (
+            <p className="text-xs text-slate-500">Checking existing records…</p>
+          )}
+          {selectedEmployee && !checking && alreadyRecorded && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {ownExistingRecord ? (
+                <>
+                  You already recorded {selectedEmployee.fullName} for {addDate} (
+                  {ownExistingRecord.mealStatus === 'ATE' ? 'ATE' : 'DID NOT EAT'}).{' '}
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => { setAddOpen(false); openEdit(ownExistingRecord); }}
+                  >
+                    Edit that record
+                  </button>
+                </>
+              ) : (
+                <>A meal for {selectedEmployee.fullName} on {addDate} was already recorded by another account.</>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => handleAddRecord(true)}
+              isLoading={savingAdd}
+              disabled={!selectedEmployee || checking || alreadyRecorded}
+            >
+              Save &amp; Add Another
+            </Button>
+            <Button
+              onClick={() => handleAddRecord(false)}
+              isLoading={savingAdd}
+              disabled={!selectedEmployee || checking || alreadyRecorded}
+            >
+              Save Record
             </Button>
           </div>
         </div>
