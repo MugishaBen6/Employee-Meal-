@@ -22,8 +22,7 @@ public class CreateEmployeeRequest {
     @NotBlank(message = "Position is required")
     private String position;
 
-    // Required for ADMIN / HR (checked in EmployeeService.createEmployee); optional when a USER
-    // adds a new employee from the Add Meal Record form.
+    // Optional for every role: the Add New Employee form no longer asks for a telephone.
     private String phone;
 
     private String email;

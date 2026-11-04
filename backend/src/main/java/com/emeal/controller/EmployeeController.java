@@ -91,9 +91,10 @@ public class EmployeeController {
     }
 
     @PostMapping
-    // USER may add a person who is not yet on the list, only together with their meal record
-    // (rules enforced in EmployeeService.createEmployee). Editing / deactivating stays ADMIN/HR.
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'USER')")
+    // All roles may add a new employee with the 4-field form (name, position, meal status, amount).
+    // USER only together with their meal record (rules in EmployeeService.createEmployee).
+    // Editing, deactivating, bulk delete and Excel import stay ADMIN/HR.
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'ACCOUNTANT', 'MANAGING_DIRECTOR', 'USER')")
     public ResponseEntity<ApiResponse<EmployeeDTO>> createEmployee(@Valid @RequestBody CreateEmployeeRequest request) {
         EmployeeDTO created = employeeService.createEmployee(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Employee created successfully", created));

@@ -249,11 +249,53 @@ class UserMealRecordingHttpTest extends HttpTestSupport {
     }
 
     @Test
-    void hr_and_admin_stillNeedATelephone() throws Exception {
-        HttpResponse<String> res = send("POST", "/employees", hr,
-                "{\"employeeName\":\"Hr NoPhone\",\"position\":\"Clerk\"}");
-        assertEquals(400, res.statusCode());
-        assertEquals("Telephone number is required", json(res).path("message").asText());
+    void hr_and_admin_addEmployee_withSameFourFields_noPhoneNoId() throws Exception {
+        createUser("admin1", Role.ADMIN, UserStatus.ACTIVE);
+        String admin = login("admin1");
+        // Exactly what the Employees page "Add New Employee" form sends now:
+        // Employee Name, Position, Meal Status, Amount Used (+ the selected date). No phone, no ID.
+        for (String[] c : new String[][]{{hr, "Hr Added", "ATE", "600"}, {admin, "Admin Added", "DID_NOT_EAT", "0"}}) {
+            HttpResponse<String> res = send("POST", "/employees", c[0],
+                    "{\"employeeName\":\"" + c[1] + "\",\"position\":\"Clerk\",\"mealStatus\":\"" + c[2]
+                            + "\",\"amount\":" + c[3] + ",\"mealDate\":\"2026-10-05\"}");
+            assertEquals(201, res.statusCode(), res.body());
+            JsonNode emp = json(res).path("data");
+            assertEquals(c[1], emp.path("fullName").asText());
+            assertFalse(emp.path("employeeCode").asText().isBlank(), "ID generated automatically");
+            assertEquals("", emp.path("phone").asText());
+        }
+        JsonNode report = json(get("/reports/daily?startDate=2026-10-05&endDate=2026-10-05", hr)).path("data");
+        assertEquals(2, report.path("records").size());
+        assertEquals(0, new BigDecimal("600").compareTo(report.path("totalExpenditure").decimalValue()));
+
+        // Same name as an active employee -> rejected for every role (no phone to tell people apart).
+        HttpResponse<String> dup = send("POST", "/employees", hr, "{\"employeeName\":\"HR ADDED\",\"position\":\"Clerk\"}");
+        assertEquals(400, dup.statusCode());
+        assertTrue(json(dup).path("message").asText().contains("already exists"));
+    }
+
+    @Test
+    void accountant_and_director_canAddEmployees_butNotEditDeactivateOrImport() throws Exception {
+        createUser("acc1", Role.ACCOUNTANT, UserStatus.ACTIVE);
+        createUser("md1", Role.MANAGING_DIRECTOR, UserStatus.ACTIVE);
+        for (String u : new String[]{"acc1", "md1"}) {
+            String token = login(u);
+            HttpResponse<String> res = send("POST", "/employees", token,
+                    "{\"employeeName\":\"Added By " + u + "\",\"position\":\"Clerk\",\"mealStatus\":\"ATE\",\"amount\":600,\"mealDate\":\"2026-10-06\"}");
+            assertEquals(201, res.statusCode(), u + ": " + res.body());
+            JsonNode emp = json(res).path("data");
+            assertFalse(emp.path("employeeCode").asText().isBlank(), "ID generated automatically");
+            long id = emp.path("id").asLong();
+
+            // Only adding is new for these roles; the rest of employee management is unchanged.
+            assertEquals(403, send("PUT", "/employees/" + id, token,
+                    "{\"employeeName\":\"Changed\",\"phone\":\"0788\",\"position\":\"Clerk\"}").statusCode(), u);
+            assertEquals(403, send("DELETE", "/employees/" + id, token, null).statusCode(), u);
+            assertEquals(403, send("POST", "/employees/bulk-delete", token, "[" + id + "]").statusCode(), u);
+        }
+        // Their meal records were created with the meal, owned by whoever added them.
+        JsonNode records = json(get("/meals?startDate=2026-10-06&endDate=2026-10-06&size=50", hr)).path("data").path("content");
+        assertEquals(2, records.size());
     }
 
     @Test
