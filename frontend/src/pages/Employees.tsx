@@ -522,7 +522,6 @@ export const Employees: React.FC = () => {
               <option value="">All Meal Status</option>
               <option value="ATE">ATE</option>
               <option value="DID_NOT_EAT">DID NOT EAT</option>
-              <option value="NOT_RECORDED">NOT RECORDED</option>
             </select>
           </div>
 
