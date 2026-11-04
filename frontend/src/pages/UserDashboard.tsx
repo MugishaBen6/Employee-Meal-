@@ -108,11 +108,35 @@ const UserDashboard: React.FC = () => {
 
   // ---------- Add Meal Record ----------
 
+  // "New employee" mode: the person is not on the list yet. The backend creates the employee
+  // (ID generated automatically) and records this meal for them in one step.
+  const [newEmployeeMode, setNewEmployeeMode] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newPosition, setNewPosition] = useState('');
+  const [newDepartment, setNewDepartment] = useState('');
+
+  const startNewEmployee = (prefillName: string) => {
+    setNewEmployeeMode(true);
+    setNewName(prefillName);
+    setNewPhone('');
+    setNewPosition('');
+    setNewDepartment('');
+    setSelectedEmployee(null);
+    setSuggestions([]);
+    setDuplicateCheck(null);
+  };
+
   const resetAddForm = (keepDateAndStatus: boolean) => {
     setEmployeeQuery('');
     setSuggestions([]);
     setSelectedEmployee(null);
     setDuplicateCheck(null);
+    setNewEmployeeMode(false);
+    setNewName('');
+    setNewPhone('');
+    setNewPosition('');
+    setNewDepartment('');
     if (!keepDateAndStatus) {
       setAddDate(getKigaliToday());
       setAddStatus('ATE');
@@ -170,32 +194,60 @@ const UserDashboard: React.FC = () => {
   // For USER accounts the backend only returns the existing record if this user created it.
   const ownExistingRecord = duplicateCheck?.todayRecord ?? null;
 
+  const newEmployeeComplete =
+    newName.trim().length > 0 && newPhone.trim().length > 0 && newPosition.trim().length > 0;
+  const canSaveAdd = newEmployeeMode
+    ? newEmployeeComplete
+    : !!selectedEmployee && !checking && !alreadyRecorded;
+
   const handleAddRecord = async (keepOpen: boolean) => {
-    if (!selectedEmployee) {
-      addToast('error', 'Select an employee first.');
-      return;
-    }
     if (!addDate || addDate > getKigaliToday()) {
       addToast('error', 'Select a meal date that is today or earlier.');
       return;
     }
-    if (alreadyRecorded) {
-      addToast('error', 'This employee already has a meal record for this date.');
-      return;
+    if (newEmployeeMode) {
+      if (!newEmployeeComplete) {
+        addToast('error', 'Enter the full name, telephone and position of the new employee.');
+        return;
+      }
+    } else {
+      if (!selectedEmployee) {
+        addToast('error', 'Select an employee first.');
+        return;
+      }
+      if (alreadyRecorded) {
+        addToast('error', 'This employee already has a meal record for this date.');
+        return;
+      }
     }
+    const statusText = addStatus === 'ATE' ? 'ATE' : 'DID NOT EAT';
     setSavingAdd(true);
     try {
-      const res = await mealApi.recordMeal({
-        employeeId: selectedEmployee.id,
-        mealDate: addDate,
-        mealStatus: addStatus,
-      });
-      const saved = res.data;
-      const amountText = `${Number(saved?.amount ?? 0).toLocaleString()} ${stats?.currency ?? 'RWF'}`;
-      addToast(
-        'success',
-        `${selectedEmployee.fullName}: ${addStatus === 'ATE' ? 'ATE' : 'DID NOT EAT'} recorded for ${addDate} (${amountText}).`
-      );
+      if (newEmployeeMode) {
+        // Amount 0 is a placeholder: for USER accounts the server sets the amount itself.
+        const created = await employeeApi.create({
+          employeeName: newName.trim(),
+          phone: newPhone.trim(),
+          position: newPosition.trim(),
+          department: newDepartment.trim() || undefined,
+          mealStatus: addStatus,
+          mealDate: addDate,
+          amount: 0,
+        });
+        addToast(
+          'success',
+          `New employee ${created?.fullName ?? newName.trim()} (${created?.employeeCode ?? ''}) added and ${statusText} recorded for ${addDate}.`
+        );
+      } else if (selectedEmployee) {
+        const res = await mealApi.recordMeal({
+          employeeId: selectedEmployee.id,
+          mealDate: addDate,
+          mealStatus: addStatus,
+        });
+        const saved = res.data;
+        const amountText = `${Number(saved?.amount ?? 0).toLocaleString()} ${stats?.currency ?? 'RWF'}`;
+        addToast('success', `${selectedEmployee.fullName}: ${statusText} recorded for ${addDate} (${amountText}).`);
+      }
       fetchStats();
       if (addDate === selectedDate) {
         fetchRecords(selectedDate);
@@ -494,8 +546,54 @@ const UserDashboard: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="add-employee" className="block text-xs font-semibold text-slate-700 mb-1">Employee</label>
-            {selectedEmployee ? (
+            <label htmlFor={newEmployeeMode ? 'new-employee-name' : 'add-employee'} className="block text-xs font-semibold text-slate-700 mb-1">
+              {newEmployeeMode ? 'New Employee (not on the list)' : 'Employee'}
+            </label>
+            {newEmployeeMode ? (
+              <div className="space-y-2 border border-emerald-200 bg-emerald-50/40 rounded-xl p-3">
+                <input
+                  id="new-employee-name"
+                  type="text"
+                  placeholder="Full name *"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
+                />
+                <input
+                  type="tel"
+                  placeholder="Telephone *"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Position *"
+                    value={newPosition}
+                    onChange={(e) => setNewPosition(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Department (optional)"
+                    value={newDepartment}
+                    onChange={(e) => setNewDepartment(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-slate-500">The employee ID is assigned automatically.</p>
+                  <button
+                    type="button"
+                    onClick={() => resetAddForm(true)}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 shrink-0"
+                  >
+                    Back to search
+                  </button>
+                </div>
+              </div>
+            ) : selectedEmployee ? (
               <div className="flex items-center justify-between gap-2 border border-indigo-200 bg-indigo-50/60 rounded-xl px-3 py-2">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{selectedEmployee.fullName}</p>
@@ -528,7 +626,17 @@ const UserDashboard: React.FC = () => {
                     {searching ? (
                       <p className="px-3 py-2 text-xs text-slate-500">Searching…</p>
                     ) : suggestions.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-slate-500">No active employee found.</p>
+                      <div className="px-3 py-2">
+                        <p className="text-xs text-slate-500">No active employee found.</p>
+                        <button
+                          type="button"
+                          onClick={() => startNewEmployee(employeeQuery.trim())}
+                          className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add &quot;{employeeQuery.trim()}&quot; as a new employee
+                        </button>
+                      </div>
                     ) : (
                       suggestions.map((emp) => (
                         <button
@@ -544,6 +652,14 @@ const UserDashboard: React.FC = () => {
                     )}
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => startNewEmployee(employeeQuery.trim())}
+                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Employee not on the list? Add a new employee
+                </button>
               </div>
             )}
           </div>
@@ -621,14 +737,14 @@ const UserDashboard: React.FC = () => {
               variant="secondary"
               onClick={() => handleAddRecord(true)}
               isLoading={savingAdd}
-              disabled={!selectedEmployee || checking || alreadyRecorded}
+              disabled={!canSaveAdd}
             >
               Save &amp; Add Another
             </Button>
             <Button
               onClick={() => handleAddRecord(false)}
               isLoading={savingAdd}
-              disabled={!selectedEmployee || checking || alreadyRecorded}
+              disabled={!canSaveAdd}
             >
               Save Record
             </Button>
