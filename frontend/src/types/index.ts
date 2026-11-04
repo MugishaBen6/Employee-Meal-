@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'MANAGING_DIRECTOR' | 'ACCOUNTANT' | 'HR';
+export type Role = 'ADMIN' | 'MANAGING_DIRECTOR' | 'ACCOUNTANT' | 'HR' | 'USER';
 
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING_APPROVAL' | 'REJECTED';
 
@@ -60,6 +60,8 @@ export interface EmployeeAttendanceSummary {
   notRecordedCount: number;
   totalMealCost: number;
   currency: string;
+  /** Configured STANDARD_MEAL_PRICE from the backend Settings. */
+  standardMealPrice?: number;
 }
 
 export interface EmployeeAttendancePageResponse {
@@ -187,6 +189,17 @@ export interface DailyReportSummary {
   averageMealCost: number;
   currency: string;
   records: MealRecord[];
+}
+
+export interface UserDashboardStats {
+  username: string;
+  totalRecords: number;
+  ateCount: number;
+  didNotEatCount: number;
+  totalAmount: number;
+  currency: string;
+  /** Configured STANDARD_MEAL_PRICE, served to USER accounts that cannot read /settings. */
+  standardMealPrice: number | null;
 }
 
 export interface PageResponse<T> {

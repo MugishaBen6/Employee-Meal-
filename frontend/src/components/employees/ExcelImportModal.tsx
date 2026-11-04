@@ -20,6 +20,7 @@ import {
 import { employeeApi } from '../../api/employeeApi';
 import { downloadClientExcelTemplate } from '../../utils/templateGenerator';
 import { parseExcelOrCsvClient } from '../../utils/excelParser';
+import { getKigaliToday } from '../../utils/dateUtils';
 import {
   ExcelEmployeeRow,
   ExcelImportPreviewResponse,
@@ -44,7 +45,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [step, setStep] = useState<Step>('upload');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mealDate, setMealDate] = useState<string>(
-    defaultDate || new Date().toISOString().split('T')[0]
+    defaultDate || getKigaliToday()
   );
   const [dragActive, setDragActive] = useState(false);
   const [previewData, setPreviewData] = useState<ExcelImportPreviewResponse | null>(null);
@@ -800,7 +801,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                             <td className="p-2.5 font-semibold">
                               {row.amountUsed !== null && row.amountUsed !== undefined
                                 ? `${row.amountUsed.toLocaleString()} RWF`
-                                : '0 RWF'}
+                                : row.mealStatus?.toUpperCase() === 'ATE'
+                                  ? 'Standard rate'
+                                  : '0 RWF'}
                             </td>
                             <td className="p-2.5">
                               {isRowValid ? (

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { mealApi } from '../api/mealApi';
 import { employeeApi } from '../api/employeeApi';
+import { useAuth } from '../context/AuthContext';
+import { getKigaliToday } from '../utils/dateUtils';
 import { Employee, MealRecord, MealStatus, QuickMealCheckResponse } from '../types';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -27,15 +29,25 @@ import {
 } from 'lucide-react';
 
 export const MealRecording: React.FC = () => {
+  const { user, hasRole } = useAuth();
+  const isLimitedUser = hasRole('USER');
   const searchInputRef = useRef<HTMLInputElement>(null);
   const modalSearchInputRef = useRef<HTMLInputElement>(null);
 
+  const ownsRecord = (record?: MealRecord | null) => {
+    if (!record) return false;
+    if (!isLimitedUser) return true;
+    return record.recordedBy === user?.username;
+  };
+
   // State
   const [query, setQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [recordDate, setRecordDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getKigaliToday());
+  const [recordDate, setRecordDate] = useState<string>(getKigaliToday());
   const [mealStatus, setMealStatus] = useState<MealStatus>('ATE');
-  const [amount, setAmount] = useState<number>(600);
+  // Filled from the backend's configured standard price (quickCheck.defaultMealPrice);
+  // 0 means "unknown" and is rejected by the save guard for ATE records.
+  const [amount, setAmount] = useState<number>(0);
 
   // Quick check / Selected Employee
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -139,10 +151,10 @@ export const MealRecording: React.FC = () => {
 
       if (result.alreadyRecordedToday && result.todayRecord) {
         setMealStatus(result.todayRecord.mealStatus);
-        setAmount(result.todayRecord.amount || 600);
+        setAmount(Number(result.todayRecord.amount ?? 0));
       } else {
         setMealStatus('ATE');
-        setAmount(result.defaultMealPrice || 600);
+        setAmount(Number(result.defaultMealPrice) || 0);
       }
 
       // Fetch employee's complete meal history
@@ -166,10 +178,10 @@ export const MealRecording: React.FC = () => {
         setQuickCheck(result);
         if (result.alreadyRecordedToday && result.todayRecord) {
           setMealStatus(result.todayRecord.mealStatus);
-          setAmount(result.todayRecord.amount || 600);
+          setAmount(Number(result.todayRecord.amount ?? 0));
         } else {
           setMealStatus('ATE');
-          setAmount(result.defaultMealPrice || 600);
+          setAmount(Number(result.defaultMealPrice) || 0);
         }
       } catch (err) {
         console.error(err);
@@ -186,7 +198,7 @@ export const MealRecording: React.FC = () => {
       setAmount(0);
     } else {
       if (amount === 0) {
-        setAmount(quickCheck?.defaultMealPrice || 600);
+        setAmount(Number(quickCheck?.defaultMealPrice) || 0);
       }
     }
   };
@@ -280,7 +292,7 @@ export const MealRecording: React.FC = () => {
     setEmployeeHistory([]);
     setIsEditingExisting(false);
     setMealStatus('ATE');
-    setAmount(600);
+    setAmount(0);
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
@@ -508,17 +520,25 @@ export const MealRecording: React.FC = () => {
                           A meal record already exists for {selectedEmployee.fullName} on {recordDate}.
                         </p>
                         <p className="text-[11px] text-amber-700 mt-0.5">
-                          Status: <span className="font-bold">{quickCheck.todayRecord?.mealStatus}</span> • Amount: <span className="font-bold">{quickCheck.todayRecord?.amount} RWF</span> • Recorded by: {quickCheck.todayRecord?.recordedBy || 'System'}
+                          {quickCheck.todayRecord ? (
+                            <>
+                              Status: <span className="font-bold">{quickCheck.todayRecord.mealStatus}</span> • Amount: <span className="font-bold">{quickCheck.todayRecord.amount} RWF</span> • Recorded by: {quickCheck.todayRecord.recordedBy || 'System'}
+                            </>
+                          ) : (
+                            'Recorded by another account.'
+                          )}
                         </p>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => setIsEditingExisting(true)}
-                      className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>Edit Record</span>
-                    </Button>
+                    {ownsRecord(quickCheck.todayRecord) && (
+                      <Button
+                        onClick={() => setIsEditingExisting(true)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 flex items-center gap-1"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit Record</span>
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -576,7 +596,7 @@ export const MealRecording: React.FC = () => {
                           disabled={mealStatus === 'DID_NOT_EAT'}
                           value={mealStatus === 'DID_NOT_EAT' ? 0 : amount}
                           onChange={(e) => setAmount(Number(e.target.value))}
-                          placeholder="600"
+                          placeholder={quickCheck?.defaultMealPrice ? String(quickCheck.defaultMealPrice) : ''}
                           className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono font-bold text-xs focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
                         />
                       </div>
@@ -707,20 +727,22 @@ export const MealRecording: React.FC = () => {
                         <p className="font-mono font-bold text-slate-900 text-[11px] mt-0.5">{m.amount || 0} RWF</p>
                       </div>
 
-                      <button
-                        onClick={async () => {
-                          try {
-                            const emp = await employeeApi.getById(m.employeeId);
-                            handleSelectEmployee(emp);
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                        title="View & Edit Record"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
+                      {ownsRecord(m) && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const emp = await employeeApi.getById(m.employeeId);
+                              handleSelectEmployee(emp);
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                          title="View & Edit Record"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -787,7 +809,9 @@ export const MealRecording: React.FC = () => {
                 <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
                   <p className="font-bold">Meal already recorded for this employee on {recordDate}:</p>
                   <p className="text-[11px] mt-0.5">
-                    {quickCheck.todayRecord?.mealStatus} • {quickCheck.todayRecord?.amount} RWF • By {quickCheck.todayRecord?.recordedBy}
+                    {quickCheck.todayRecord
+                      ? `${quickCheck.todayRecord.mealStatus} • ${quickCheck.todayRecord.amount} RWF • By ${quickCheck.todayRecord.recordedBy}`
+                      : 'Recorded by another account.'}
                   </p>
                 </div>
               )}
@@ -827,13 +851,19 @@ export const MealRecording: React.FC = () => {
 
               <div className="pt-2 flex gap-2">
                 {quickCheck?.alreadyRecordedToday ? (
-                  <Button
-                    onClick={handleUpdateRecord}
-                    isLoading={submitting}
-                    className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl"
-                  >
-                    Update Record
-                  </Button>
+                  ownsRecord(quickCheck.todayRecord) ? (
+                    <Button
+                      onClick={handleUpdateRecord}
+                      isLoading={submitting}
+                      className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl"
+                    >
+                      Update Record
+                    </Button>
+                  ) : (
+                    <p className="flex-1 text-[11px] text-amber-800 font-semibold py-2">
+                      This record belongs to another user and cannot be edited.
+                    </p>
+                  )
                 ) : (
                   <Button
                     onClick={handleSaveRecord}

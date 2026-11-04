@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
               <h3 className="text-base sm:text-2xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
-                {formatCurrency(stats.totalExpenseCost ?? (stats.thisMonthTotalCost || 19200), stats.currency)}
+                {formatCurrency(stats.totalExpenseCost ?? 0, stats.currency)}
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
@@ -139,7 +139,7 @@ export const Dashboard: React.FC = () => {
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meals Served</p>
               <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">
-                {stats.totalMealsCount ?? stats.ateToday} <span className="text-xs font-normal text-slate-500">Meals</span>
+                {stats.totalMealsCount ?? 0} <span className="text-xs font-normal text-slate-500">Meals</span>
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -167,7 +167,7 @@ export const Dashboard: React.FC = () => {
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Standard Meal Rate</p>
               <h3 className="text-base sm:text-2xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">
-                {formatCurrency(stats.standardMealPrice || 600, stats.currency)}
+                {stats.standardMealPrice ? formatCurrency(stats.standardMealPrice, stats.currency) : '—'}
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">

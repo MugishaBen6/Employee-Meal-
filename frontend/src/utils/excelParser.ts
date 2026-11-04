@@ -397,7 +397,9 @@ function buildPreviewFromRows(matrix: string[][]): ExcelImportPreviewResponse {
       errors.push(`Invalid Meal Status ('${mealStatusRaw}'). Expected 'Ate' or 'Not Ate'.`);
     }
 
-    let parsedAmount: number | null = 1500;
+    // null = "use the configured standard meal price"; the backend resolves it
+    // from Settings at import time, so no price is hardcoded on the client.
+    let parsedAmount: number | null = null;
     if (parsedStatus === 'DID_NOT_EAT') {
       parsedAmount = 0;
     } else {
@@ -409,7 +411,7 @@ function buildPreviewFromRows(matrix: string[][]): ExcelImportPreviewResponse {
           parsedAmount = num;
         }
       } else {
-        parsedAmount = 1500;
+        parsedAmount = null;
       }
     }
 

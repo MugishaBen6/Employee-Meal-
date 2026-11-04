@@ -18,6 +18,7 @@ import Skeleton from '../components/common/Skeleton';
 import Toast from '../components/common/Toast';
 import ExcelImportModal from '../components/employees/ExcelImportModal';
 import { downloadClientExcelTemplate } from '../utils/templateGenerator';
+import { getKigaliToday } from '../utils/dateUtils';
 import {
   Users,
   Search,
@@ -42,8 +43,11 @@ import {
 export const Employees: React.FC = () => {
   const { hasRole } = useAuth();
 
-  // Selected date defaults to today (YYYY-MM-DD)
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Selected date defaults to today in Africa/Kigali timezone (UTC+2, no DST).
+  // Using getKigaliToday() instead of new Date().toISOString().split('T')[0]
+  // because toISOString() returns UTC — at 00:00–02:00 Kigali time that would
+  // show yesterday's date.
+  const todayStr = getKigaliToday();
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   // Filters & Pagination State
@@ -74,10 +78,16 @@ export const Employees: React.FC = () => {
     totalMealCost: 0,
     currency: 'RWF',
   });
+  // Configured STANDARD_MEAL_PRICE served by the backend with the attendance summary.
+  // 0 = not loaded yet; the backend then applies the configured price itself.
+  const standardPrice = Number(summary.standardMealPrice) > 0 ? Number(summary.standardMealPrice) : 0;
   const [departments, setDepartments] = useState<string[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
+  // True only after the attendance summary loaded successfully; while loading or
+  // after a failed request the summary cards show "—" instead of placeholder zeros.
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
 
   // Modals & History State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -105,7 +115,7 @@ export const Employees: React.FC = () => {
     phone: '',
     position: '',
     mealStatus: 'ATE',
-    amount: 600,
+    amount: 0,
   });
 
   // Edit Employee Form State
@@ -130,10 +140,12 @@ export const Employees: React.FC = () => {
       });
 
       setSummary(data.summary);
+      setSummaryLoaded(true);
       setAttendanceList(data.employees.content);
       setTotalPages(data.employees.totalPages);
       setTotalElements(data.employees.totalElements);
     } catch (e: any) {
+      setSummaryLoaded(false);
       setToast({ message: 'Failed to load employee attendance data', type: 'error' });
     } finally {
       setLoading(false);
@@ -192,7 +204,7 @@ export const Employees: React.FC = () => {
         phone: '',
         position: '',
         mealStatus: 'ATE',
-        amount: 1500,
+        amount: standardPrice,
       });
       fetchAttendance();
     } catch (err: any) {
@@ -364,7 +376,13 @@ export const Employees: React.FC = () => {
               type="button"
               variant="primary"
               size="sm"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                setAddForm((prev) => ({
+                  ...prev,
+                  amount: prev.mealStatus === 'DID_NOT_EAT' ? 0 : (prev.amount && prev.amount > 0 ? prev.amount : standardPrice),
+                }));
+                setIsAddModalOpen(true);
+              }}
               className="text-xs sm:text-sm"
             >
               <Plus className="w-4 h-4 mr-1.5" />
@@ -381,7 +399,7 @@ export const Employees: React.FC = () => {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Staff</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summary.totalActiveEmployees}</h3>
+              <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summaryLoaded ? summary.totalActiveEmployees : '—'}</h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
               <Users className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -410,7 +428,7 @@ export const Employees: React.FC = () => {
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Standard Rate</p>
               <h3 className="text-base sm:text-2xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">
-                600 {summary.currency || 'RWF'}
+                {standardPrice > 0 ? standardPrice.toLocaleString() : '—'} {summary.currency || 'RWF'}
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
@@ -425,7 +443,7 @@ export const Employees: React.FC = () => {
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
               <h3 className="text-base sm:text-2xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
-                {(summary.totalMealCost ?? 19200).toLocaleString()} {summary.currency || 'RWF'}
+                {summaryLoaded ? Number(summary.totalMealCost ?? 0).toLocaleString() : '—'} {summary.currency || 'RWF'}
               </h3>
             </div>
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
@@ -628,18 +646,34 @@ export const Employees: React.FC = () => {
 
                     {/* Meal Status Badge */}
                     <td className="px-4 py-3.5 text-center">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                        ATE
-                      </span>
+                      {emp.mealStatus === 'ATE' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                          ATE
+                        </span>
+                      ) : emp.mealStatus === 'DID_NOT_EAT' ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          <XCircle className="w-3.5 h-3.5 mr-1" />
+                          DID NOT EAT
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                          NOT RECORDED
+                        </span>
+                      )}
                     </td>
 
                     {/* Amount Used */}
                     <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900">
-                      {formatCurrency(
-                        emp.amount && emp.amount > 0 ? emp.amount : 600,
-                        emp.currency || 'RWF'
-                      )}
+                      {emp.mealStatus === 'ATE'
+                        ? formatCurrency(
+                            emp.amount && emp.amount > 0 ? emp.amount : standardPrice,
+                            emp.currency || 'RWF'
+                          )
+                        : emp.mealStatus === 'DID_NOT_EAT'
+                        ? formatCurrency(0, emp.currency || 'RWF')
+                        : '—'}
                     </td>
 
                     {/* Actions */}
@@ -785,7 +819,7 @@ export const Employees: React.FC = () => {
                   setAddForm({
                     ...addForm,
                     mealStatus: status,
-                    amount: status === 'DID_NOT_EAT' ? 0 : 1500,
+                    amount: status === 'DID_NOT_EAT' ? 0 : standardPrice,
                   });
                 }}
                 className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
@@ -802,7 +836,7 @@ export const Employees: React.FC = () => {
                   required
                   min="0"
                   disabled={addForm.mealStatus === 'DID_NOT_EAT'}
-                  placeholder="1500"
+                  placeholder={standardPrice > 0 ? String(standardPrice) : ''}
                   value={addForm.amount}
                   onChange={(e) => setAddForm({ ...addForm, amount: parseFloat(e.target.value) || 0 })}
                   className={`w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-14 ${

@@ -25,7 +25,7 @@ interface LoginFormInputs {
 }
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, getDashboardPath } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -76,17 +76,11 @@ const Login: React.FC = () => {
     setError(null);
     try {
       const user = await login(data.usernameOrEmail, data.password);
+      const fromPath = location.state?.from?.pathname as string | undefined;
       const target =
-        location.state?.from?.pathname ||
-        (user?.role === 'ADMIN'
-          ? '/admin/dashboard'
-          : user?.role === 'MANAGING_DIRECTOR'
-          ? '/director/dashboard'
-          : user?.role === 'ACCOUNTANT'
-          ? '/accountant/dashboard'
-          : user?.role === 'HR'
-          ? '/hr/dashboard'
-          : '/dashboard');
+        fromPath && fromPath !== '/login'
+          ? fromPath
+          : getDashboardPath() || (user ? '/dashboard' : '/login');
       navigate(target, { replace: true });
     } catch (err: any) {
       const msg =

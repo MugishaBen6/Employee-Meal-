@@ -15,6 +15,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
     MANAGING_DIRECTOR: 'warning',
     ACCOUNTANT: 'info',
     HR: 'success',
+    USER: 'info',
   };
 
   return (

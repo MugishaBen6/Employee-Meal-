@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ShieldCheck, ArrowLeft, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { authApi } from '../api/authApi';
-import { SetupAdminRequest } from '../types';
+import { SetupAdminRequest, UserStatus } from '../types';
 import Button from '../components/common/Button';
 
 const SetupAdmin: React.FC = () => {
@@ -12,6 +12,11 @@ const SetupAdmin: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isInitialSetup, setIsInitialSetup] = useState(true);
+  // Status returned by the server for the created account (authoritative: a request
+  // started as "initial setup" can still end up PENDING_APPROVAL if another admin was
+  // created first).
+  const [createdStatus, setCreatedStatus] = useState<UserStatus | null>(null);
+  const isPendingApproval = createdStatus !== 'ACTIVE';
 
   const {
     register,
@@ -35,7 +40,8 @@ const SetupAdmin: React.FC = () => {
   const onSubmit = async (data: SetupAdminRequest) => {
     setError(null);
     try {
-      await authApi.setupInitialAdmin(data);
+      const res = await authApi.setupInitialAdmin(data);
+      setCreatedStatus(res.data?.status ?? null);
       setIsSuccess(true);
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Failed to initialize administrator account.';
@@ -67,19 +73,19 @@ const SetupAdmin: React.FC = () => {
                 <CheckCircle2 className="h-8 w-8" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">
-                {isInitialSetup ? 'Master Admin Configured' : 'Admin Account Created'}
+                {isPendingApproval ? 'Approval Required' : 'Master Admin Configured'}
               </h3>
               <p className="text-sm text-slate-300 mb-6">
-                {isInitialSetup
-                  ? 'Your administrator account has been initialized in PostgreSQL. You can now log in immediately.'
-                  : 'Your administrator account has been created. You can now proceed to login.'}
+                {isPendingApproval
+                  ? 'Your administrator account has been created and is pending approval. An existing administrator must approve it before you can log in.'
+                  : 'Your administrator account has been initialized. You can now log in immediately.'}
               </p>
               <Button
                 variant="primary"
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => navigate('/login')}
               >
-                Proceed to Login
+                {isPendingApproval ? 'Back to Login' : 'Proceed to Login'}
               </Button>
             </div>
           ) : (

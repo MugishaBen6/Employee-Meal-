@@ -189,6 +189,7 @@ const Register: React.FC = () => {
                     onChange={(e) => setSelectedRole(e.target.value as Role)}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 pl-10 pr-10 appearance-none cursor-pointer"
                   >
+                    <option value="USER" className="bg-slate-900 text-white">User / Employee</option>
                     <option value="HR" className="bg-slate-900 text-white">Human Resources (HR)</option>
                     <option value="ACCOUNTANT" className="bg-slate-900 text-white">Accountant / Finance</option>
                     <option value="MANAGING_DIRECTOR" className="bg-slate-900 text-white">Managing Director (MD)</option>

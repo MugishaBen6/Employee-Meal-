@@ -225,6 +225,8 @@ const Users: React.FC = () => {
         return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">Accountant</span>;
       case 'HR':
         return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">HR</span>;
+      case 'USER':
+        return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800">User</span>;
       default:
         return <Badge variant="neutral">{role}</Badge>;
     }
@@ -313,6 +315,7 @@ const Users: React.FC = () => {
               <option value="MANAGING_DIRECTOR">Managing Director</option>
               <option value="ACCOUNTANT">Accountant</option>
               <option value="HR">HR</option>
+              <option value="USER">User</option>
             </select>
           </div>
         </div>
@@ -559,6 +562,7 @@ const Users: React.FC = () => {
               {...registerCreate('role', { required: 'Role is required' })}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
             >
+              <option value="USER">User / Employee</option>
               <option value="HR">HR Manager</option>
               <option value="ACCOUNTANT">Accountant</option>
               <option value="MANAGING_DIRECTOR">Managing Director</option>
@@ -623,6 +627,7 @@ const Users: React.FC = () => {
               {...registerEdit('role')}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800"
             >
+              <option value="USER">User / Employee</option>
               <option value="HR">HR Manager</option>
               <option value="ACCOUNTANT">Accountant</option>
               <option value="MANAGING_DIRECTOR">Managing Director</option>
@@ -676,6 +681,7 @@ const Users: React.FC = () => {
               onChange={(e) => setApproveRole(e.target.value as Role)}
               className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:ring-2 focus:ring-blue-500"
             >
+              <option value="USER">User / Employee</option>
               <option value="HR">HR Manager</option>
               <option value="ACCOUNTANT">Accountant</option>
               <option value="MANAGING_DIRECTOR">Managing Director</option>

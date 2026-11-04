@@ -18,6 +18,7 @@ const AuditLogs = lazy(() => import('./pages/AuditLogs'));
 const Users = lazy(() => import('./pages/Users'));
 const Settings = lazy(() => import('./pages/Settings'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 
 import { Role } from './types';
 
@@ -80,25 +81,74 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="admin/dashboard" element={<Dashboard />} />
-        <Route path="director/dashboard" element={<Dashboard />} />
-        <Route path="accountant/dashboard" element={<Dashboard />} />
-        <Route path="hr/dashboard" element={<Dashboard />} />
+        <Route index element={<Navigate to={getDashboardPath()} replace />} />
+        <Route
+          path="dashboard"
+          element={
+            <ProtectedRoute roles={['ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/dashboard"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="director/dashboard"
+          element={
+            <ProtectedRoute roles={['MANAGING_DIRECTOR']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="accountant/dashboard"
+          element={
+            <ProtectedRoute roles={['ACCOUNTANT']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="hr/dashboard"
+          element={
+            <ProtectedRoute roles={['HR']}>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
 
-        <Route path="employees" element={<Employees />} />
+        <Route
+          path="employees"
+          element={
+            <ProtectedRoute roles={['ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR']}>
+              <Employees />
+            </ProtectedRoute>
+          }
+        />
         
         <Route
           path="meals"
           element={
-            <ProtectedRoute roles={['ADMIN', 'HR']}>
+            <ProtectedRoute roles={['ADMIN', 'HR', 'USER']}>
               <MealRecording />
             </ProtectedRoute>
           }
         />
 
-        <Route path="reports" element={<Reports />} />
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute roles={['ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR']}>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
         
         <Route
           path="expenses"
@@ -132,6 +182,15 @@ export const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute roles={['ADMIN']}>
               <Settings />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="user/dashboard"
+          element={
+            <ProtectedRoute roles={['USER']}>
+              <UserDashboard />
             </ProtectedRoute>
           }
         />

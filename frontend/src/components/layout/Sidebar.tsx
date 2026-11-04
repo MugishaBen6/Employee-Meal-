@@ -24,6 +24,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const navItems = [
     {
+      label: 'My Dashboard',
+      path: '/user/dashboard',
+      icon: LayoutDashboard,
+      roles: ['USER'],
+    },
+    {
       label: 'Dashboard',
       path: '/dashboard',
       icon: LayoutDashboard,
@@ -39,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       label: 'Meal Recording',
       path: '/meals',
       icon: Utensils,
-      roles: ['ADMIN', 'HR'],
+      roles: ['ADMIN', 'HR', 'USER'],
     },
     {
       label: 'Reports',
