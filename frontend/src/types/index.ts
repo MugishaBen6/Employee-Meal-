@@ -72,7 +72,8 @@ export interface EmployeeAttendancePageResponse {
 export interface CreateEmployeeRequest {
   employeeCode?: string;
   employeeName: string;
-  phone: string;
+  /** Required for ADMIN / HR; optional when a USER adds a new employee. */
+  phone?: string;
   position: string;
   mealStatus: 'ATE' | 'DID_NOT_EAT';
   amount: number;

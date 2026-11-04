@@ -108,20 +108,17 @@ const UserDashboard: React.FC = () => {
 
   // ---------- Add Meal Record ----------
 
-  // "New employee" mode: the person is not on the list yet. The backend creates the employee
-  // (ID generated automatically) and records this meal for them in one step.
+  // "New employee" mode: the person is not on the list yet. The form asks only for the
+  // Employee Name and Position (plus Meal Status; Amount Used is shown read-only). The backend
+  // generates the Employee ID and records this meal for them in one step. No telephone.
   const [newEmployeeMode, setNewEmployeeMode] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
   const [newPosition, setNewPosition] = useState('');
-  const [newDepartment, setNewDepartment] = useState('');
 
   const startNewEmployee = (prefillName: string) => {
     setNewEmployeeMode(true);
     setNewName(prefillName);
-    setNewPhone('');
     setNewPosition('');
-    setNewDepartment('');
     setSelectedEmployee(null);
     setSuggestions([]);
     setDuplicateCheck(null);
@@ -134,9 +131,7 @@ const UserDashboard: React.FC = () => {
     setDuplicateCheck(null);
     setNewEmployeeMode(false);
     setNewName('');
-    setNewPhone('');
     setNewPosition('');
-    setNewDepartment('');
     if (!keepDateAndStatus) {
       setAddDate(getKigaliToday());
       setAddStatus('ATE');
@@ -194,8 +189,7 @@ const UserDashboard: React.FC = () => {
   // For USER accounts the backend only returns the existing record if this user created it.
   const ownExistingRecord = duplicateCheck?.todayRecord ?? null;
 
-  const newEmployeeComplete =
-    newName.trim().length > 0 && newPhone.trim().length > 0 && newPosition.trim().length > 0;
+  const newEmployeeComplete = newName.trim().length > 0 && newPosition.trim().length > 0;
   const canSaveAdd = newEmployeeMode
     ? newEmployeeComplete
     : !!selectedEmployee && !checking && !alreadyRecorded;
@@ -207,7 +201,7 @@ const UserDashboard: React.FC = () => {
     }
     if (newEmployeeMode) {
       if (!newEmployeeComplete) {
-        addToast('error', 'Enter the full name, telephone and position of the new employee.');
+        addToast('error', 'Enter the employee name and position of the new employee.');
         return;
       }
     } else {
@@ -227,9 +221,7 @@ const UserDashboard: React.FC = () => {
         // Amount 0 is a placeholder: for USER accounts the server sets the amount itself.
         const created = await employeeApi.create({
           employeeName: newName.trim(),
-          phone: newPhone.trim(),
           position: newPosition.trim(),
-          department: newDepartment.trim() || undefined,
           mealStatus: addStatus,
           mealDate: addDate,
           amount: 0,
@@ -533,52 +525,47 @@ const UserDashboard: React.FC = () => {
 
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Meal Record">
         <div className="space-y-4">
-          <div>
-            <label htmlFor="add-meal-date" className="block text-xs font-semibold text-slate-700 mb-1">Meal Date</label>
-            <input
-              id="add-meal-date"
-              type="date"
-              value={addDate}
-              max={getKigaliToday()}
-              onChange={(e) => setAddDate(e.target.value)}
-              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
-            />
-          </div>
+          {newEmployeeMode ? (
+            <p className="text-xs text-slate-500">
+              Meal date: <span className="font-semibold text-slate-700">{addDate}</span>
+            </p>
+          ) : (
+            <div>
+              <label htmlFor="add-meal-date" className="block text-xs font-semibold text-slate-700 mb-1">Meal Date</label>
+              <input
+                id="add-meal-date"
+                type="date"
+                value={addDate}
+                max={getKigaliToday()}
+                onChange={(e) => setAddDate(e.target.value)}
+                className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor={newEmployeeMode ? 'new-employee-name' : 'add-employee'} className="block text-xs font-semibold text-slate-700 mb-1">
               {newEmployeeMode ? 'New Employee (not on the list)' : 'Employee'}
             </label>
             {newEmployeeMode ? (
-              <div className="space-y-2 border border-emerald-200 bg-emerald-50/40 rounded-xl p-3">
-                <input
-                  id="new-employee-name"
-                  type="text"
-                  placeholder="Full name *"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
-                />
-                <input
-                  type="tel"
-                  placeholder="Telephone *"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-3 border border-emerald-200 bg-emerald-50/40 rounded-xl p-3">
+                <div>
+                  <label htmlFor="new-employee-name" className="block text-[11px] font-semibold text-slate-600 mb-1">Employee Name *</label>
                   <input
+                    id="new-employee-name"
                     type="text"
-                    placeholder="Position *"
-                    value={newPosition}
-                    onChange={(e) => setNewPosition(e.target.value)}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
                     className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
                   />
+                </div>
+                <div>
+                  <label htmlFor="new-employee-position" className="block text-[11px] font-semibold text-slate-600 mb-1">Position *</label>
                   <input
+                    id="new-employee-position"
                     type="text"
-                    placeholder="Department (optional)"
-                    value={newDepartment}
-                    onChange={(e) => setNewDepartment(e.target.value)}
+                    value={newPosition}
+                    onChange={(e) => setNewPosition(e.target.value)}
                     className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white"
                   />
                 </div>
