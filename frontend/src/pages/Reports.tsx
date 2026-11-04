@@ -37,8 +37,27 @@ const isValidDateString = (value: string): boolean => {
   );
 };
 
+/** "2026-09-01" -> "01/09/2026" (same format as the PDF and Excel exports). */
+const formatMealDate = (value?: string): string => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return '-';
+  return `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}`;
+};
+
+/**
+ * Validates the From / To period. Returns an error message, or null when valid.
+ * Dates are YYYY-MM-DD strings, so plain string comparison orders them correctly.
+ */
+const getPeriodError = (fromDate: string, toDate: string): string | null => {
+  if (!isValidDateString(fromDate)) return 'Please select a valid From Date.';
+  if (!isValidDateString(toDate)) return 'Please select a valid To Date.';
+  if (fromDate > toDate) return 'From Date must be on or before To Date.';
+  return null;
+};
+
 export const Reports: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState<string>(getKigaliToday());
+  // Inclusive report period. Both default to today (Kigali), i.e. a single-day report.
+  const [fromDate, setFromDate] = useState<string>(getKigaliToday());
+  const [toDate, setToDate] = useState<string>(getKigaliToday());
   const [selectedDept, setSelectedDept] = useState<string>('');
   const [departments, setDepartments] = useState<string[]>([]);
   const [summary, setSummary] = useState<DailyReportSummary | null>(null);
@@ -59,9 +78,15 @@ export const Reports: React.FC = () => {
     fetchDepartments();
   }, []);
 
+  // Regenerate automatically when the period or department changes. While the user is still
+  // editing an invalid period, skip silently; the inline hint explains why.
   useEffect(() => {
-    fetchReportData();
-  }, [selectedDate, selectedDept]);
+    if (!getPeriodError(fromDate, toDate)) {
+      fetchReportData();
+    }
+  }, [fromDate, toDate, selectedDept]);
+
+  const periodError = getPeriodError(fromDate, toDate);
 
   const fetchDepartments = async () => {
     try {
@@ -73,13 +98,14 @@ export const Reports: React.FC = () => {
   };
 
   const fetchReportData = async () => {
-    if (!isValidDateString(selectedDate)) {
-      addToast('error', 'Please select a valid report date (YYYY-MM-DD) before generating the report.');
+    const error = getPeriodError(fromDate, toDate);
+    if (error) {
+      addToast('error', `${error} The report was not generated.`);
       return;
     }
     setLoading(true);
     try {
-      const data = await reportApi.getDailyReport(selectedDate, selectedDept || undefined);
+      const data = await reportApi.getReport(fromDate, toDate, selectedDept || undefined);
       setSummary(data);
     } catch (err: any) {
       addToast('error', err.response?.data?.message || 'Failed to fetch report data');
@@ -89,14 +115,15 @@ export const Reports: React.FC = () => {
   };
 
   const handleDownloadExcel = async () => {
-    if (!isValidDateString(selectedDate)) {
-      addToast('error', 'Please select a valid report date (YYYY-MM-DD) before exporting to Excel.');
+    const error = getPeriodError(fromDate, toDate);
+    if (error) {
+      addToast('error', `${error} Excel export was not started.`);
       return;
     }
     setExportingExcel(true);
     try {
-      await reportApi.downloadExcel(selectedDate, selectedDept || undefined);
-      addToast('success', `Daily_Meal_Report_${selectedDate}.xlsx downloaded successfully.`);
+      const filename = await reportApi.downloadExcel(fromDate, toDate, selectedDept || undefined);
+      addToast('success', `${filename} downloaded successfully.`);
     } catch (err: any) {
       addToast('error', 'Failed to generate Excel report.');
     } finally {
@@ -105,14 +132,15 @@ export const Reports: React.FC = () => {
   };
 
   const handleDownloadPdf = async () => {
-    if (!isValidDateString(selectedDate)) {
-      addToast('error', 'Please select a valid report date (YYYY-MM-DD) before exporting to PDF.');
+    const error = getPeriodError(fromDate, toDate);
+    if (error) {
+      addToast('error', `${error} PDF export was not started.`);
       return;
     }
     setExportingPdf(true);
     try {
-      await reportApi.downloadPdf(selectedDate, selectedDept || undefined);
-      addToast('success', `Daily_Meal_Report_${selectedDate}.pdf downloaded successfully.`);
+      const filename = await reportApi.downloadPdf(fromDate, toDate, selectedDept || undefined);
+      addToast('success', `${filename} downloaded successfully.`);
     } catch (err: any) {
       addToast('error', 'Failed to generate PDF report.');
     } finally {
@@ -124,7 +152,10 @@ export const Reports: React.FC = () => {
     window.print();
   };
 
-  const formattedDisplayDate = summary?.formattedReportDate || selectedDate;
+  // Label of the period currently shown, e.g. "01/09/2026" or "01/09/2026 - 30/09/2026".
+  const formattedDisplayDate =
+    summary?.formattedReportDate || (fromDate === toDate ? fromDate : `${fromDate} - ${toDate}`);
+  const isSingleDay = summary ? summary.singleDay !== false : fromDate === toDate;
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fadeIn">
@@ -132,7 +163,7 @@ export const Reports: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 print:hidden">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reports Engine</h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Generate and export official date-specific meal expense reports</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Generate and export official meal expense reports for a selected date range</p>
         </div>
 
         <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
@@ -175,13 +206,28 @@ export const Reports: React.FC = () => {
       <Card className="p-3.5 sm:p-4 print:hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5 ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
               <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
-              <label className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">Date:</label>
+              <label htmlFor="report-from-date" className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">From Date:</label>
               <input
+                id="report-from-date"
                 type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                value={fromDate}
+                max={toDate || undefined}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
+              />
+            </div>
+
+            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5 ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
+              <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+              <label htmlFor="report-to-date" className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">To Date:</label>
+              <input
+                id="report-to-date"
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(e) => setToDate(e.target.value)}
                 className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
               />
             </div>
@@ -218,13 +264,20 @@ export const Reports: React.FC = () => {
             <span className="font-mono text-indigo-700 font-semibold">{formattedDisplayDate}</span>
           </div>
         </div>
+        {periodError && (
+          <p className="mt-2 text-xs font-medium text-rose-600" role="alert">{periodError}</p>
+        )}
       </Card>
 
       {/* Official Print Header */}
       <div className="hidden print:block text-center border-b pb-4 mb-4">
         <h1 className="text-2xl font-bold text-slate-900 tracking-wide uppercase">{summary?.companyName || 'RWANDA PLASTIC INDUSTRY'}</h1>
-        <h2 className="text-base font-semibold text-slate-700 mt-1 uppercase">DAILY EMPLOYEE MEAL REPORT</h2>
-        <p className="text-xs text-slate-500 font-mono mt-1">Reporting Date: {formattedDisplayDate}</p>
+        <h2 className="text-base font-semibold text-slate-700 mt-1 uppercase">
+          {isSingleDay ? 'DAILY EMPLOYEE MEAL REPORT' : 'EMPLOYEE MEAL REPORT'}
+        </h2>
+        <p className="text-xs text-slate-500 font-mono mt-1">
+          {isSingleDay ? 'Reporting Date' : 'Reporting Period'}: {formattedDisplayDate}
+        </p>
       </div>
 
       {/* Summary Cards */}
@@ -264,9 +317,10 @@ export const Reports: React.FC = () => {
       {/* Transactions Table */}
       <Card title={`Detailed Meal Transactions — ${formattedDisplayDate}`} className="p-0 overflow-hidden shadow-sm">
         <div className="overflow-x-auto touch-scroll">
-          <table className="w-full text-left text-sm min-w-[720px]">
+          <table className="w-full text-left text-sm min-w-[800px]">
             <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
               <tr>
+                <th className="py-3.5 px-4">Date</th>
                 <th className="py-3.5 px-4">Code</th>
                 <th className="py-3.5 px-4">Employee Name</th>
                 <th className="py-3.5 px-4">Position</th>
@@ -281,19 +335,24 @@ export const Reports: React.FC = () => {
               {loading || !summary ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={8} className="p-4"><Skeleton className="h-4 w-full" /></td>
+                    <td colSpan={9} className="p-4"><Skeleton className="h-4 w-full" /></td>
                   </tr>
                 ))
               ) : summary.records.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-500 text-sm">
+                  <td colSpan={9} className="py-12 text-center text-slate-500 text-sm">
                     <p className="font-semibold text-slate-700">No meal records found for {formattedDisplayDate}.</p>
-                    <p className="text-xs text-slate-400 mt-1">Select another date or record meals for this date to see data.</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {isSingleDay
+                        ? 'Select another date or record meals for this date to see data.'
+                        : 'Select another period or record meals within this period to see data.'}
+                    </p>
                   </td>
                 </tr>
               ) : (
                 summary.records.map((r, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={r.id ?? idx} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 text-slate-600 text-xs font-mono whitespace-nowrap">{formatMealDate(r.mealDate)}</td>
                     <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{r.employeeCode}</td>
                     <td className="py-3.5 px-4 font-semibold text-slate-900">{r.employeeName}</td>
                     <td className="py-3.5 px-4 text-slate-700 font-medium text-xs">{r.position || 'Worker'}</td>

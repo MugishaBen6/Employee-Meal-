@@ -180,7 +180,14 @@ export interface DashboardStats {
 
 export interface DailyReportSummary {
   reportDate: string;
+  /** Period label: "01/09/2026" for one day, "01/09/2026 - 30/09/2026" for a range. */
   formattedReportDate: string;
+  /** Inclusive report period (From / To). Equal for a single-day report. */
+  startDate: string;
+  endDate: string;
+  formattedStartDate: string;
+  formattedEndDate: string;
+  singleDay: boolean;
   companyName: string;
   totalEmployees: number;
   ateCount: number;
