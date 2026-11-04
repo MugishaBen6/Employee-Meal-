@@ -62,7 +62,7 @@ public class MealRecordService {
         }
 
         MealStatus status = request.getMealStatus() != null ? request.getMealStatus() : MealStatus.ATE;
-        BigDecimal amount = resolveAmount(status, request.getAmount());
+        BigDecimal amount = resolveAmount(status, request.getAmount(), null);
         String username = SecurityUtils.getCurrentUsername();
 
         MealRecord record = MealRecord.builder()
@@ -206,7 +206,7 @@ public class MealRecordService {
         String prevRecordedBy = record.getRecordedBy();
 
         MealStatus newStatus = request.getMealStatus();
-        BigDecimal newAmount = resolveAmount(newStatus, request.getAmount());
+        BigDecimal newAmount = resolveAmount(newStatus, request.getAmount(), record);
 
         record.setMealStatus(newStatus);
         record.setAmount(newAmount);
@@ -256,9 +256,29 @@ public class MealRecordService {
         return SecurityUtils.getCurrentUsername().equals(record.getRecordedBy());
     }
 
-    private BigDecimal resolveAmount(MealStatus status, BigDecimal requestedAmount) {
+    /**
+     * Amount for a new or updated record.
+     * <ul>
+     *   <li>DID_NOT_EAT is always 0.</li>
+     *   <li>USER accounts never choose the amount: a client-supplied value is ignored. ATE uses the
+     *       configured standard price, except that a record that is already ATE keeps its stored
+     *       amount, so history is not repriced.</li>
+     *   <li>Other roles keep the existing rule: a positive requested amount, otherwise the standard price.</li>
+     * </ul>
+     *
+     * @param existing the record being updated, or null when creating a new record
+     */
+    private BigDecimal resolveAmount(MealStatus status, BigDecimal requestedAmount, MealRecord existing) {
         if (status == MealStatus.DID_NOT_EAT) {
             return BigDecimal.ZERO;
+        }
+
+        if (SecurityUtils.isUserRole()) {
+            if (existing != null && existing.getMealStatus() == MealStatus.ATE
+                    && existing.getAmount() != null && existing.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                return existing.getAmount();
+            }
+            return settingsService.getStandardMealPrice();
         }
 
         BigDecimal amount = requestedAmount;
