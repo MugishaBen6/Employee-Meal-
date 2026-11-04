@@ -255,6 +255,9 @@ public class EmployeeService {
         boolean byUserRole = SecurityUtils.isUserRole();
         if (byUserRole) {
             validateEmployeeCreatedByUser(request);
+        } else if (request.getPhone() == null || request.getPhone().isBlank()) {
+            // ADMIN / HR: telephone stays required, exactly as before.
+            throw new BadRequestException("Telephone number is required");
         }
 
         // USER accounts never choose the employee ID; it is generated like any blank ID.
@@ -332,9 +335,11 @@ public class EmployeeService {
     }
 
     /**
-     * A USER may add a person who is not yet on the list only while recording that person's meal:
-     * a name, a meal status and a meal date no later than today are required, and the phone number
-     * must not already belong to an existing employee (to avoid duplicate people).
+     * A USER may add a person who is not yet on the list only while recording that person's meal.
+     * Required: name, position and meal status; the meal date may not be in the future.
+     * Telephone is optional (stored as empty text when not given; the column is NOT NULL).
+     * To avoid duplicate people, an active employee with the same name, or an employee with the
+     * same (given) telephone, is rejected with a hint to search the list instead.
      */
     private void validateEmployeeCreatedByUser(CreateEmployeeRequest request) {
         String name = (request.getEmployeeName() != null && !request.getEmployeeName().isBlank())
@@ -350,7 +355,16 @@ public class EmployeeService {
         if (request.getMealDate() != null && request.getMealDate().isAfter(BusinessTime.today())) {
             throw new BadRequestException("The meal date cannot be in the future.");
         }
-        if (request.getPhone() != null && employeeRepository.existsByPhone(request.getPhone().trim())) {
+        // Same split as createEmployee(): first word = first name, the rest = last name.
+        int space = name.indexOf(' ');
+        String first = space > 0 ? name.substring(0, space).trim() : name;
+        String last = space > 0 ? name.substring(space + 1).trim() : "";
+        if (employeeRepository.existsByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(first, last, EmployeeStatus.ACTIVE)) {
+            throw new DuplicateResourceException(
+                    "An employee named " + name + " already exists. Search for them in the list instead.");
+        }
+        if (request.getPhone() != null && !request.getPhone().isBlank()
+                && employeeRepository.existsByPhone(request.getPhone().trim())) {
             throw new DuplicateResourceException(
                     "An employee with this phone number already exists. Search for them in the list instead.");
         }

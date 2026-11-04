@@ -21,6 +21,9 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
     boolean existsByPhone(String phone);
 
+    /** Duplicate-person check when a USER adds a new employee (name match, case-insensitive). */
+    boolean existsByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(String firstName, String lastName, EmployeeStatus status);
+
     Optional<Employee> findByPhone(String phone);
 
     long countByStatus(EmployeeStatus status);

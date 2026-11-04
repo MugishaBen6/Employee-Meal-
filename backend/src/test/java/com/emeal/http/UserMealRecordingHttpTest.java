@@ -206,11 +206,54 @@ class UserMealRecordingHttpTest extends HttpTestSupport {
         // No future meal dates.
         assertEquals(400, newEmployee(alice, "Future Person", "+250788000002", "Worker", "ATE",
                 LocalDate.now().plusDays(3).toString(), "").statusCode());
-        // Name, position and phone are required.
+        // Name and position are required.
         assertEquals(400, newEmployee(alice, "", "+250788000003", "Worker", "ATE", "2026-10-03", "").statusCode());
-        assertEquals(400, newEmployee(alice, "No Phone", "", "Worker", "ATE", "2026-10-03", "").statusCode());
         assertEquals(400, newEmployee(alice, "No Position", "+250788000004", "", "ATE", "2026-10-03", "").statusCode());
+        // An active employee with the same name already exists -> search for them instead (case-insensitive).
+        HttpResponse<String> sameName = newEmployeeNoPhone(alice, "alice WORKER", "Worker", "ATE", "2026-10-03");
+        assertEquals(400, sameName.statusCode());
+        assertTrue(json(sameName).path("message").asText().contains("already exists"));
         assertEquals(before, employeeRepository.count(), "nothing was created by rejected requests");
+    }
+
+    @Test
+    void user_addsNewEmployee_withOnlyNamePositionAndStatus_noPhoneNoId() throws Exception {
+        // Exactly what the USER form sends: name, position, meal status (+ date). No telephone, no ID.
+        HttpResponse<String> res = newEmployeeNoPhone(alice, "Diane Ingabire", "Cook", "ATE", "2026-10-04");
+        assertEquals(201, res.statusCode(), res.body());
+        JsonNode emp = json(res).path("data");
+        assertEquals("Diane Ingabire", emp.path("fullName").asText());
+        assertEquals("Cook", emp.path("position").asText());
+        assertFalse(emp.path("employeeCode").asText().isBlank(), "ID generated automatically");
+        assertEquals("", emp.path("phone").asText(), "no telephone stored");
+
+        // A second person without phone also works (blank phones never count as duplicates).
+        HttpResponse<String> second = newEmployeeNoPhone(alice, "Eric Nkurunziza", "Guard", "DID_NOT_EAT", "2026-10-04");
+        assertEquals(201, second.statusCode(), second.body());
+        assertNotEquals(emp.path("employeeCode").asText(), json(second).path("data").path("employeeCode").asText());
+
+        JsonNode mine = json(get("/meals?startDate=2026-10-04&endDate=2026-10-04&size=50", alice)).path("data").path("content");
+        assertEquals(2, mine.size());
+        for (JsonNode r : mine) {
+            BigDecimal expected = "ATE".equals(r.path("mealStatus").asText()) ? new BigDecimal("600.00") : BigDecimal.ZERO;
+            assertEquals(0, expected.compareTo(r.path("amount").decimalValue()));
+            assertEquals("alice", r.path("recordedBy").asText());
+        }
+
+        // The new people appear in reports and attendance like any employee.
+        JsonNode report = json(get("/reports/daily?startDate=2026-10-04&endDate=2026-10-04", hr)).path("data");
+        assertEquals(2, report.path("records").size());
+        assertEquals(0, new BigDecimal("600").compareTo(report.path("totalExpenditure").decimalValue()));
+        assertEquals(200, get("/employees/attendance?date=2026-10-04", hr).statusCode());
+        assertEquals(200, get("/reports/daily/excel?startDate=2026-10-04&endDate=2026-10-04", hr).statusCode());
+    }
+
+    @Test
+    void hr_and_admin_stillNeedATelephone() throws Exception {
+        HttpResponse<String> res = send("POST", "/employees", hr,
+                "{\"employeeName\":\"Hr NoPhone\",\"position\":\"Clerk\"}");
+        assertEquals(400, res.statusCode());
+        assertEquals("Telephone number is required", json(res).path("message").asText());
     }
 
     @Test
@@ -254,6 +297,12 @@ class UserMealRecordingHttpTest extends HttpTestSupport {
                 + (status != null ? ",\"mealStatus\":\"" + status + "\"" : "")
                 + ",\"mealDate\":\"" + date + "\"" + extra + "}";
         return send("POST", "/employees", token, body);
+    }
+
+    private HttpResponse<String> newEmployeeNoPhone(String token, String name, String position,
+                                                    String status, String date) throws Exception {
+        return send("POST", "/employees", token, "{\"employeeName\":\"" + name + "\",\"position\":\"" + position
+                + "\",\"mealStatus\":\"" + status + "\",\"mealDate\":\"" + date + "\"}");
     }
 
     private long id(HttpResponse<String> res) throws Exception {
