@@ -2,20 +2,111 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------
+   Base: typography, page background, focus and selection
+   ------------------------------------------------------------------ */
 @layer base {
-  html, body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #f8fafc;
+  html,
+  body {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background-color: #f5f7fb;
     color: #0f172a;
     overflow-x: hidden;
     width: 100%;
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
+    text-rendering: optimizeLegibility;
   }
 
-  input, select, textarea, button {
+  /* Headings use the display face with slightly tighter tracking. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.015em;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
     font-family: inherit;
   }
+
+  /* Numbers in tables line up in columns. */
+  table,
+  .tabular-nums,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+  /* "font-mono" is used for codes, amounts and times: keep them crisp and aligned. */
+  .font-mono {
+    letter-spacing: -0.005em;
+  }
+
+  ::selection {
+    background-color: #3f4fe2;
+    color: #fff;
+  }
+
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid #5568ee;
+    outline-offset: 2px;
+  }
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+
+  /* Form controls: consistent hover/focus polish without changing layout. */
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='tel'],
+  input[type='number'],
+  input[type='date'],
+  input[type='search'],
+  select,
+  textarea {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+  input[type='text']:focus,
+  input[type='email']:focus,
+  input[type='password']:focus,
+  input[type='tel']:focus,
+  input[type='number']:focus,
+  input[type='date']:focus,
+  input[type='search']:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #5568ee;
+    box-shadow: 0 0 0 4px rgba(85, 104, 238, 0.14);
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+  }
+  input[type='date']::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------------
+   App background: soft royal glow at the top of every page
+   ------------------------------------------------------------------ */
+.app-canvas {
+  background-color: #f5f7fb;
+  background-image: radial-gradient(1200px 380px at 70% -120px, rgba(85, 104, 238, 0.09), transparent 70%),
+    radial-gradient(800px 300px at -10% -80px, rgba(245, 158, 11, 0.05), transparent 70%);
+  background-repeat: no-repeat;
 }
 
 /* Smooth mobile touch scrolling for tables and horizontal lists */
@@ -26,18 +117,27 @@
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cfd6e3;
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a9b3c6;
+  background-clip: padding-box;
+}
+
+/* Sidebar scrollbar (dark) */
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  background-clip: padding-box;
 }
 
 /* Shimmer Skeleton animation */
@@ -51,7 +151,77 @@
 }
 
 .skeleton-shimmer {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%);
+  background: linear-gradient(90deg, #eef1f6 25%, #e2e7f0 37%, #eef1f6 63%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------
+   Data tables: one consistent look for every table in the app
+   (applies to existing markup; colours and spacing only)
+   ------------------------------------------------------------------ */
+main table thead th {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  white-space: nowrap;
+}
+main table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print: hide app chrome, keep content crisp. */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+  .app-canvas {
+    background: #fff !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Authentication pages (register, password recovery, admin setup):
+   same photo + royal overlay as the login brand panel, frosted card.
+   ------------------------------------------------------------------ */
+.auth-backdrop {
+  position: relative;
+  background-color: #0b1220;
+  background-image: radial-gradient(700px 420px at 90% 110%, rgba(245, 158, 11, 0.22), transparent 70%),
+    linear-gradient(135deg, rgba(11, 18, 32, 0.93) 0%, rgba(27, 33, 86, 0.86) 55%, rgba(52, 64, 199, 0.7) 100%),
+    url('./assets/login-bg.jpg');
+  background-size: cover, cover, cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+.auth-card {
+  background: rgba(15, 23, 41, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+@media (max-width: 1023px) {
+  .auth-backdrop {
+    background-attachment: scroll;
+  }
 }

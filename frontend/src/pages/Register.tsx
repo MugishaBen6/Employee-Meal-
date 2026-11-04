@@ -49,8 +49,13 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
+    <div className="auth-backdrop min-h-[100dvh] flex flex-col justify-center py-10 sm:py-14 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <div className="mb-6 flex items-center justify-center gap-2.5">
+          <span className="font-display font-extrabold tracking-[0.12em] text-white text-sm">ISAHANE</span>
+          <span className="h-1 w-1 rounded-full bg-amber-400" />
+          <span className="text-xs font-medium tracking-wide text-white/60">RWANDA PLASTIC INDUSTRY</span>
+        </div>
         <div className={`mx-auto h-14 w-14 sm:h-16 sm:w-16 ${selectedRole === 'ADMIN' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'} rounded-2xl flex items-center justify-center shadow-lg transition-colors`}>
           {selectedRole === 'ADMIN' ? <ShieldCheck className="h-8 w-8 sm:h-9 sm:w-9 text-white" /> : <UtensilsCrossed className="h-8 w-8 sm:h-9 sm:w-9 text-white" />}
         </div>
@@ -63,7 +68,7 @@ const Register: React.FC = () => {
       </div>
 
       <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-slate-800 py-6 px-4.5 sm:py-8 sm:px-10 shadow-2xl rounded-2xl border border-slate-700">
+        <div className="auth-card py-6 px-5 sm:py-8 sm:px-10 rounded-3xl animate-scaleUp">
           {/* Role Toggle Selector */}
           {!isSuccess && (
             <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900/90 rounded-xl mb-5 border border-slate-700">

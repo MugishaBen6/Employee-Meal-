@@ -441,7 +441,39 @@ const UserDashboard: React.FC = () => {
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile: one card per record (same data and Edit action as the table) */}
+          <ul className="md:hidden space-y-2.5">
+            {records.map((rec) => (
+              <li key={rec.id} className="rounded-2xl ring-1 ring-slate-200/80 bg-white p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 truncate">{rec.employeeName ?? '—'}</p>
+                    <p className="text-xs text-slate-500 truncate">{rec.position ?? '—'}</p>
+                  </div>
+                  <p className="font-mono font-bold text-sm text-slate-900 whitespace-nowrap">
+                    {rec.mealStatus === 'ATE'
+                      ? `${Number(rec.amount ?? 0).toLocaleString()} ${stats?.currency ?? 'RWF'}`
+                      : `0 ${stats?.currency ?? 'RWF'}`}
+                  </p>
+                </div>
+                <div className="mt-2.5 flex items-center justify-between gap-2">
+                  <Badge variant={rec.mealStatus === 'ATE' ? 'success' : 'danger'}>
+                    {rec.mealStatus === 'ATE' ? 'ATE' : 'DID NOT EAT'}
+                  </Badge>
+                  <button
+                    onClick={() => openEdit(rec)}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-slate-500 border-b border-slate-200">
@@ -481,6 +513,7 @@ const UserDashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
 

@@ -43,8 +43,13 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-8 sm:py-12 px-3 sm:px-6 lg:px-8">
+    <div className="auth-backdrop min-h-[100dvh] flex flex-col justify-center py-10 sm:py-14 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <div className="mb-6 flex items-center justify-center gap-2.5">
+          <span className="font-display font-extrabold tracking-[0.12em] text-white text-sm">ISAHANE</span>
+          <span className="h-1 w-1 rounded-full bg-amber-400" />
+          <span className="text-xs font-medium tracking-wide text-white/60">RWANDA PLASTIC INDUSTRY</span>
+        </div>
         <div className="mx-auto h-14 w-14 sm:h-16 sm:w-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
           <UtensilsCrossed className="h-8 w-8 sm:h-9 sm:w-9 text-white" />
         </div>
@@ -57,7 +62,7 @@ const ResetPassword: React.FC = () => {
       </div>
 
       <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-slate-800 py-6 px-4.5 sm:py-8 sm:px-10 shadow-2xl rounded-2xl border border-slate-700">
+        <div className="auth-card py-6 px-5 sm:py-8 sm:px-10 rounded-3xl animate-scaleUp">
           {!token ? (
             <div className="text-center py-4">
               <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-rose-500/10 text-rose-400 mb-4 border border-rose-500/20">

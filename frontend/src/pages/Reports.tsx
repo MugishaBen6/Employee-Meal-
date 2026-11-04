@@ -204,9 +204,9 @@ export const Reports: React.FC = () => {
 
       {/* Filter & Generation Bar */}
       <Card className="p-3.5 sm:p-4 print:hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
-            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5 ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.15fr_auto] gap-2.5 sm:gap-3 w-full">
+            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 min-h-[42px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
               <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
               <label htmlFor="report-from-date" className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">From Date:</label>
               <input
@@ -215,11 +215,11 @@ export const Reports: React.FC = () => {
                 value={fromDate}
                 max={toDate || undefined}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
+                className="bg-transparent text-sm font-semibold text-slate-800 focus:outline-none focus:shadow-none border-0 p-0 cursor-pointer w-full min-w-0"
               />
             </div>
 
-            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5 ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
+            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 min-h-[42px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
               <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
               <label htmlFor="report-to-date" className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">To Date:</label>
               <input
@@ -228,17 +228,17 @@ export const Reports: React.FC = () => {
                 value={toDate}
                 min={fromDate || undefined}
                 onChange={(e) => setToDate(e.target.value)}
-                className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
+                className="bg-transparent text-sm font-semibold text-slate-800 focus:outline-none focus:shadow-none border-0 p-0 cursor-pointer w-full min-w-0"
               />
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 min-h-[42px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
               <Filter className="w-4 h-4 text-indigo-600 shrink-0" />
               <label className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">Dept:</label>
               <select
                 value={selectedDept}
                 onChange={(e) => setSelectedDept(e.target.value)}
-                className="bg-transparent text-xs sm:text-sm font-medium text-slate-800 focus:outline-none w-full"
+                className="bg-transparent text-sm font-medium text-slate-800 focus:outline-none focus:shadow-none border-0 p-0 w-full min-w-0 cursor-pointer"
               >
                 <option value="">All Departments</option>
                 {departments.map((d) => (
@@ -251,14 +251,14 @@ export const Reports: React.FC = () => {
               onClick={fetchReportData}
               isLoading={loading}
               size="sm"
-              className="bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 gap-1.5 text-xs sm:text-sm min-h-[38px] font-semibold"
+              className="gap-1.5 text-sm min-h-[42px] sm:col-span-2 xl:col-span-1"
             >
               <Search className="w-4 h-4 shrink-0" />
-              <span>GENERATE REPORT</span>
+              <span>Generate report</span>
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-100/70 px-3 py-1.5 rounded-lg border border-slate-200">
+          <div className="self-start flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium text-slate-500 bg-slate-100/70 px-3 py-1.5 rounded-lg ring-1 ring-inset ring-slate-200">
             <span className="font-bold text-slate-800">{summary?.companyName || 'RWANDA PLASTIC INDUSTRY'}</span>
             <span>•</span>
             <span className="font-mono text-indigo-700 font-semibold">{formattedDisplayDate}</span>
@@ -316,7 +316,56 @@ export const Reports: React.FC = () => {
 
       {/* Transactions Table */}
       <Card title={`Detailed Meal Transactions — ${formattedDisplayDate}`} className="p-0 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto touch-scroll">
+        {/* Mobile: one card per record (same records as the table and the exports) */}
+        <div className="md:hidden px-3.5 pb-3.5 pt-1 print:hidden">
+          {loading || !summary ? (
+            <div className="space-y-2.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-[88px] w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : summary.records.length === 0 ? (
+            <div className="py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                <FileText className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="text-sm font-semibold text-slate-700">No meal records found for {formattedDisplayDate}.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {isSingleDay
+                  ? 'Select another date or record meals for this date to see data.'
+                  : 'Select another period or record meals within this period to see data.'}
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {summary.records.map((r, idx) => (
+                <li key={r.id ?? idx} className="rounded-2xl ring-1 ring-slate-200/80 bg-white p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900 truncate">{r.employeeName}</p>
+                      <p className="text-xs text-slate-500 truncate">
+                        <span className="font-mono font-semibold text-indigo-700">{r.employeeCode}</span> · {r.position || 'Worker'} · {r.department}
+                      </p>
+                    </div>
+                    <p className="font-mono font-bold text-sm text-slate-900 whitespace-nowrap">
+                      {r.amount.toLocaleString()} {summary.currency}
+                    </p>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between gap-2 text-xs text-slate-500">
+                    <Badge variant={r.mealStatus === 'ATE' ? 'success' : 'danger'}>{r.mealStatus}</Badge>
+                    <span className="font-mono">
+                      {formatMealDate(r.mealDate)}
+                      {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                      {` · ${r.recordedBy}`}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="hidden md:block print:block overflow-x-auto touch-scroll">
           <table className="w-full text-left text-sm min-w-[800px]">
             <thead className="bg-slate-50 text-slate-600 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
               <tr>

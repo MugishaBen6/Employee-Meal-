@@ -232,6 +232,71 @@ const Users: React.FC = () => {
     }
   };
 
+  // Row actions, shared by the desktop table and the mobile cards.
+  const renderUserActions = (u: (typeof users)[number]) => (
+    <div className="flex items-center justify-end gap-1">
+      {u.status === 'PENDING_APPROVAL' ? (
+        <>
+          <button
+            onClick={() => openApproveModal(u)}
+            title="Approve User & Assign Role"
+            className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 rounded-lg border border-emerald-200 flex items-center gap-1 min-h-[34px]"
+          >
+            <CheckCircle className="w-3.5 h-3.5" />
+            Approve
+          </button>
+          <button
+            onClick={() => handleRejectUser(u)}
+            title="Reject Registration"
+            aria-label="Reject Registration"
+            className="p-2 text-rose-500 hover:bg-rose-50 active:bg-rose-100 rounded-lg min-w-[34px] min-h-[34px] flex items-center justify-center"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => openEditModal(u)}
+            title="Edit User"
+            aria-label="Edit User"
+            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              setSelectedUser(u);
+              setNewPassword('');
+              setIsPasswordModalOpen(true);
+            }}
+            title="Reset Password"
+            aria-label="Reset Password"
+            className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 active:bg-amber-100 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
+          >
+            <KeyRound className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleToggleStatus(u)}
+            title={u.status === 'ACTIVE' ? 'Deactivate User' : 'Activate User'}
+            aria-label="Toggle Status"
+            className={`p-2 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center ${
+              u.status === 'ACTIVE'
+                ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100'
+                : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100'
+            }`}
+          >
+            {u.status === 'ACTIVE' ? (
+              <UserX className="w-4 h-4" />
+            ) : (
+              <UserCheck className="w-4 h-4" />
+            )}
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {toast && (
@@ -340,7 +405,31 @@ const Users: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto touch-scroll">
+          <>
+          {/* Mobile: one card per user (same data and actions as the table) */}
+          <ul className="md:hidden divide-y divide-slate-100">
+            {users.map((u) => (
+              <li key={u.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 truncate">
+                      {u.firstName} {u.lastName}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      <span className="font-mono">@{u.username}</span> · {u.email}
+                    </p>
+                  </div>
+                  {getStatusBadge(u.status)}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  {getRoleBadge(u.role)}
+                  {renderUserActions(u)}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden md:block overflow-x-auto touch-scroll">
             <table className="w-full text-left text-sm text-slate-700 min-w-[620px]">
               <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
@@ -364,74 +453,13 @@ const Users: React.FC = () => {
                     <td className="px-4 py-3 text-slate-600 text-xs">{u.email}</td>
                     <td className="px-4 py-3">{getRoleBadge(u.role)}</td>
                     <td className="px-4 py-3">{getStatusBadge(u.status)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {u.status === 'PENDING_APPROVAL' ? (
-                          <>
-                            <button
-                              onClick={() => openApproveModal(u)}
-                              title="Approve User & Assign Role"
-                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200 rounded-lg border border-emerald-200 flex items-center gap-1 min-h-[34px]"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectUser(u)}
-                              title="Reject Registration"
-                              aria-label="Reject Registration"
-                              className="p-2 text-rose-500 hover:bg-rose-50 active:bg-rose-100 rounded-lg min-w-[34px] min-h-[34px] flex items-center justify-center"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => openEditModal(u)}
-                              title="Edit User"
-                              aria-label="Edit User"
-                              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedUser(u);
-                                setNewPassword('');
-                                setIsPasswordModalOpen(true);
-                              }}
-                              title="Reset Password"
-                              aria-label="Reset Password"
-                              className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 active:bg-amber-100 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
-                            >
-                              <KeyRound className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleToggleStatus(u)}
-                              title={u.status === 'ACTIVE' ? 'Deactivate User' : 'Activate User'}
-                              aria-label="Toggle Status"
-                              className={`p-2 rounded-lg transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center ${
-                                u.status === 'ACTIVE'
-                                  ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100'
-                                  : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100'
-                              }`}
-                            >
-                              {u.status === 'ACTIVE' ? (
-                                <UserX className="w-4 h-4" />
-                              ) : (
-                                <UserCheck className="w-4 h-4" />
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
+                    <td className="px-4 py-3 text-right">{renderUserActions(u)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* Pagination */}

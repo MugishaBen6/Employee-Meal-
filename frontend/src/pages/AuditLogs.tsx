@@ -51,7 +51,7 @@ export const AuditLogs: React.FC = () => {
               setUsername(e.target.value);
               setPage(0);
             }}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500"
+            className="w-full h-11 px-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none"
           />
           <input
             type="text"
@@ -61,13 +61,47 @@ export const AuditLogs: React.FC = () => {
               setAction(e.target.value);
               setPage(0);
             }}
-            className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500"
+            className="w-full h-11 px-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none"
           />
         </div>
       </Card>
 
       <Card className="p-0 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto touch-scroll">
+        {/* Mobile: one card per audit entry (same data as the table) */}
+        <div className="md:hidden">
+          {loading || !logs ? (
+            <div className="p-3.5 space-y-2.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-[96px] w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : logs.content.length === 0 ? (
+            <p className="py-12 text-center text-slate-400 text-sm">No audit logs found matching the criteria.</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {logs.content.map((log) => (
+                <li key={log.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-slate-900 text-sm truncate">{log.username}</span>
+                      <Badge variant="info">{log.userRole}</Badge>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs font-mono font-semibold text-indigo-700">
+                    {log.action}
+                    <span className="font-normal text-slate-400"> · {log.entityType} ({log.entityId || '-'})</span>
+                  </p>
+                  <p className="mt-1 text-[13px] text-slate-600 leading-snug break-words">{log.description}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto touch-scroll">
           <table className="w-full text-left text-sm min-w-[720px]">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] tracking-wider font-semibold border-b border-slate-200">
               <tr>

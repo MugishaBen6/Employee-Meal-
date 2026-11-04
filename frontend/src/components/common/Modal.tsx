@@ -9,6 +9,10 @@ interface ModalProps {
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
 }
 
+/**
+ * Dialog. On phones it is a bottom sheet (full width, rounded top, thumb-reachable);
+ * from the `sm` breakpoint up it is a centred card.
+ */
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
@@ -33,32 +37,41 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   const widthClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-    '2xl': 'max-w-2xl',
-    '3xl': 'max-w-3xl',
-    '4xl': 'max-w-4xl',
-    '5xl': 'max-w-5xl',
+    sm: 'sm:max-w-sm',
+    md: 'sm:max-w-md',
+    lg: 'sm:max-w-lg',
+    xl: 'sm:max-w-xl',
+    '2xl': 'sm:max-w-2xl',
+    '3xl': 'sm:max-w-3xl',
+    '4xl': 'sm:max-w-4xl',
+    '5xl': 'sm:max-w-5xl',
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-950/55 backdrop-blur-sm animate-overlayIn">
       <div
-        className={`bg-white rounded-2xl shadow-2xl w-full ${widthClasses[maxWidth]} max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 transform transition-all animate-scaleUp my-auto`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`bg-white w-full ${widthClasses[maxWidth]} max-h-[92dvh] sm:max-h-[88vh] flex flex-col overflow-hidden rounded-t-3xl sm:rounded-2xl shadow-elevated ring-1 ring-slate-900/5 animate-scaleUp`}
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 bg-slate-50/70 shrink-0">
-          <h3 className="text-base sm:text-lg font-semibold text-slate-900 tracking-tight truncate pr-2">{title}</h3>
+        {/* Grab handle (phones) */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-0.5 shrink-0" aria-hidden="true">
+          <span className="h-1.5 w-10 rounded-full bg-slate-200" />
+        </div>
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 pt-2.5 pb-3.5 sm:py-4 border-b border-slate-100 shrink-0">
+          <h3 className="font-display text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">{title}</h3>
           <button
             onClick={onClose}
-            aria-label="Close modal"
-            className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 active:bg-slate-300/60 p-2 rounded-xl transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:bg-slate-200 p-2 rounded-xl transition-colors min-w-[38px] min-h-[38px] flex items-center justify-center shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-4 sm:p-6 overflow-y-auto touch-scroll flex-1">{children}</div>
+        <div className="px-5 py-5 sm:p-6 overflow-y-auto touch-scroll flex-1 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {children}
+        </div>
       </div>
     </div>
   );

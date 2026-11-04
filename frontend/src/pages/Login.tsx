@@ -11,18 +11,24 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Utensils,
-  Sparkles,
+  CalendarCheck2,
+  FileBarChart2,
+  Fingerprint,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/authApi';
-import Button from '../components/common/Button';
 import loginBg from '../assets/login-bg.jpg';
 
 interface LoginFormInputs {
   usernameOrEmail: string;
   password: string;
 }
+
+const HIGHLIGHTS = [
+  { icon: CalendarCheck2, title: 'Daily meal attendance', text: 'Record ATE / DID NOT EAT in seconds, for any date.' },
+  { icon: FileBarChart2, title: 'Accurate reports', text: 'Date-range reports with PDF and Excel exports.' },
+  { icon: Fingerprint, title: 'Secure by role', text: 'Every change audited, every role in its lane.' },
+];
 
 const Login: React.FC = () => {
   const { login, getDashboardPath } = useAuth();
@@ -89,91 +95,100 @@ const Login: React.FC = () => {
     }
   };
 
+  const inputClass =
+    'w-full h-12 rounded-xl border bg-white pl-11 pr-3.5 text-[15px] text-slate-900 placeholder:text-slate-400 shadow-xs ' +
+    'hover:border-slate-300 focus:outline-none';
+
   return (
-    <div
-      className="min-h-[100dvh] h-[100dvh] max-h-[100dvh] relative flex flex-col justify-center items-center px-3 py-2 sm:p-4 overflow-hidden font-sans select-none selection:bg-blue-500 selection:text-white bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${loginBg})` }}
-    >
-      {/* Soft Elegant Backdrop Overlay */}
-      <div className="absolute inset-0 bg-slate-900/15 backdrop-blur-[1px] pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-slate-900/20 pointer-events-none" />
+    <div className="min-h-[100dvh] w-full flex flex-col lg:flex-row bg-white font-sans">
+      {/* ---------------- Brand panel (photo) ---------------- */}
+      <aside
+        className="relative lg:w-[52%] xl:w-[55%] h-56 sm:h-64 lg:h-auto lg:min-h-[100dvh] shrink-0 overflow-hidden bg-slate-900 bg-cover bg-center"
+        style={{ backgroundImage: `url(${loginBg})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0B1220]/90 via-[#1B2156]/80 to-[#3440C7]/55" />
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{ background: 'radial-gradient(600px 400px at 85% 110%, rgba(245,158,11,0.28), transparent 70%)' }}
+        />
 
-      {/* Main Container */}
-      <div className="w-full max-w-[430px] z-10 flex flex-col items-center my-auto">
-        {/* Top Header Section with Frosted Glass Container for High Visibility */}
-        <div className="text-center mb-2.5 sm:mb-3 bg-white/95 backdrop-blur-md px-4 sm:px-6 py-3 sm:py-3.5 rounded-2xl shadow-lg shadow-slate-900/10 border border-white/80 w-full flex flex-col items-center transition-all">
-          {/* Company Name */}
-          <h1 className="text-base sm:text-lg md:text-xl font-black text-slate-950 tracking-tight uppercase leading-tight">
-            RWANDA PLASTIC INDUSTRY
-          </h1>
-
-          {/* Large Main App Icon (Fork and Knife placed below Company Name) */}
-          <div className="mt-2.5 w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-b from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 border border-white/40 ring-4 ring-blue-500/15 transition-transform duration-200 hover:scale-105 shrink-0">
-            <UtensilsCrossed className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-xs" />
-          </div>
-        </div>
-
-        {/* Centered White Login Card */}
-        <div className="w-full bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-slate-900/10 border border-slate-200/80 p-4 sm:py-5 sm:px-6 transition-all">
-          {/* Meal Emblem Graphic */}
-          <div className="flex flex-col items-center justify-center mb-2 sm:mb-2.5">
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center shrink-0">
-              {/* Dual-tone dynamic circular swoosh rings */}
-              <svg
-                className="w-12 h-12 sm:w-14 sm:h-14 -rotate-45"
-                viewBox="0 0 100 100"
-                width="48"
-                height="48"
-              >
-                <path
-                  d="M 50 8 A 42 42 0 0 1 92 50"
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M 50 92 A 42 42 0 0 1 8 50"
-                  fill="none"
-                  stroke="#f59e0b"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                />
-              </svg>
-
-              {/* Inner Plate & Utensils Emblem */}
-              <div className="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-slate-50 to-blue-50/60 border border-slate-200 flex items-center justify-center shadow-inner">
-                <Utensils className="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5 text-blue-600" />
-              </div>
+        <div className="relative z-10 h-full flex flex-col justify-between p-6 sm:p-8 lg:p-12 xl:p-14 text-white">
+          {/* Brand */}
+          <div className="flex items-center gap-3">
+            <div className="relative w-11 h-11 lg:w-12 lg:h-12 rounded-2xl bg-white/10 ring-1 ring-white/25 backdrop-blur-md flex items-center justify-center shadow-lg">
+              <UtensilsCrossed className="w-5 h-5 lg:w-6 lg:h-6" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-[#1B2156]" aria-hidden="true" />
             </div>
+            <div className="leading-tight">
+              <p className="font-display font-extrabold tracking-[0.1em] text-[15px] lg:text-base">ISAHANE</p>
+              <p className="text-[11px] lg:text-xs text-white/70 font-medium tracking-wide">RWANDA PLASTIC INDUSTRY</p>
+            </div>
+          </div>
 
-            {/* System Title Badge */}
-            <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200/70 text-[11px] sm:text-xs font-bold text-blue-700 tracking-wide">
+          {/* Headline (desktop) */}
+          <div className="hidden lg:block max-w-lg">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 ring-1 ring-white/20 px-3 py-1 text-xs font-semibold tracking-wide text-white/90 backdrop-blur-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
               Employee Meal Management System
             </span>
-
-            {/* Welcome Back & Subtitle */}
-            <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900 mt-1 tracking-tight leading-tight">
-              Welcome Back
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-tight">
-              Sign in to your account to continue
+            <h1 className="mt-6 font-display text-4xl xl:text-5xl font-extrabold leading-[1.08] tracking-tight">
+              Every meal,
+              <br />
+              <span className="bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">accounted for.</span>
+            </h1>
+            <p className="mt-5 text-base xl:text-lg text-white/75 leading-relaxed">
+              Track daily meal attendance and costs for every employee, with clear reports your whole team can trust.
             </p>
+
+            <ul className="mt-10 space-y-4">
+              {HIGHLIGHTS.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="flex items-start gap-3.5">
+                  <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15 backdrop-blur-md shrink-0">
+                    <Icon className="h-5 w-5 text-amber-300" />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-[15px]">{title}</p>
+                    <p className="text-sm text-white/65">{text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Tagline (mobile / tablet) */}
+          <div className="lg:hidden pb-6">
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold leading-tight tracking-tight">Every meal, accounted for.</h1>
+            <p className="mt-1 text-sm text-white/75">Employee Meal Management System</p>
+          </div>
+
+          <p className="hidden lg:block text-xs text-white/55 tracking-wide">
+            © {new Date().getFullYear()} RWANDA PLASTIC INDUSTRY · Secure • Reliable • Efficient
+          </p>
+        </div>
+      </aside>
+
+      {/* ---------------- Sign-in panel ---------------- */}
+      <main className="relative flex-1 flex items-start lg:items-center justify-center -mt-6 lg:mt-0 rounded-t-[28px] lg:rounded-none bg-white px-5 sm:px-8 pt-8 pb-10 lg:py-12 z-10">
+        <div className="w-full max-w-[420px] animate-fadeIn">
+          <div className="mb-7">
+            <div className="hidden lg:flex mb-6 h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white shadow-glow ring-4 ring-indigo-100">
+              <UtensilsCrossed className="h-7 w-7" />
+            </div>
+            <h2 className="font-display text-[28px] sm:text-3xl font-extrabold text-slate-900 tracking-tight">Welcome back</h2>
+            <p className="mt-1.5 text-[15px] text-slate-500">Sign in to your account to continue.</p>
           </div>
 
           {/* Initial Setup Notification if needed */}
           {setupNeeded && (
-            <div className="mb-2 p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="mb-5 flex items-start gap-3 rounded-2xl bg-emerald-50 ring-1 ring-inset ring-emerald-600/15 p-4">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-bold text-emerald-900">
-                  Initial Setup Required
-                </p>
+                <p className="text-sm font-semibold text-emerald-900">Initial setup required</p>
                 <Link
                   to="/setup-admin"
-                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+                  className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-900"
                 >
-                  Configure Master Admin Account &rarr;
+                  Configure the master admin account <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
@@ -181,103 +196,98 @@ const Login: React.FC = () => {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-2 bg-rose-50 border border-rose-200 rounded-xl p-2.5 flex items-start gap-1.5 animate-shake">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <p className="text-xs font-medium text-rose-700 leading-tight">
-                {error}
-              </p>
+            <div className="mb-5 flex items-start gap-3 rounded-2xl bg-rose-50 ring-1 ring-inset ring-rose-600/15 p-4 animate-shake" role="alert">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-rose-800 leading-snug">{error}</p>
             </div>
           )}
 
           {/* Login Form */}
-          <form className="space-y-2 sm:space-y-2.5" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
             {/* Email or Username */}
             <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-1">
-                Email or Username
+              <label htmlFor="login-identifier" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Email or username
               </label>
               <div className="relative">
+                <User className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="login-identifier"
                   type="text"
                   {...register('usernameOrEmail', {
                     required: 'Email or Username is required',
                   })}
-                  className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pl-9 transition-all shadow-xs"
-                  placeholder="Enter your email or username"
+                  className={`${inputClass} ${errors.usernameOrEmail ? 'border-rose-300' : 'border-slate-200'}`}
+                  placeholder="you@company.com or username"
                   autoComplete="username"
+                  aria-invalid={!!errors.usernameOrEmail}
                 />
-                <User className="w-4 h-4 text-slate-400 absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2" />
               </div>
               {errors.usernameOrEmail && (
-                <p className="text-[11px] text-rose-500 font-medium mt-0.5">
-                  {errors.usernameOrEmail.message}
+                <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-600">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.usernameOrEmail.message}
                 </p>
               )}
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-1">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="login-password" className="block text-sm font-semibold text-slate-700">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
+                <Lock className="w-[18px] h-[18px] text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   {...register('password', {
                     required: 'Password is required',
                   })}
-                  className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 pl-9 pr-9 transition-all shadow-xs"
+                  className={`${inputClass} pr-12 ${errors.password ? 'border-rose-300' : 'border-slate-200'}`}
                   placeholder="Enter your password"
                   autoComplete="current-password"
+                  aria-invalid={!!errors.password}
                 />
-                <Lock className="w-4 h-4 text-slate-400 absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2" />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
+                  {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-[11px] text-rose-500 font-medium mt-0.5">
-                  {errors.password.message}
+                <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-rose-600">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.password.message}
                 </p>
               )}
             </div>
 
-            {/* Remember Me & Forgot Password Row */}
-            <div className="flex items-center justify-between pt-0.5">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500 cursor-pointer"
-                />
-                <span className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900">
-                  Remember me
-                </span>
-              </label>
-
-              <Link
-                to="/forgot-password"
-                className="text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            {/* Remember Me */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none w-fit">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-[18px] h-[18px] rounded-md text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+              />
+              <span className="text-sm font-medium text-slate-600">Remember me</span>
+            </label>
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2 sm:py-2.5 px-3.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 active:from-blue-800 active:to-blue-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="group w-full h-12 px-4 rounded-xl bg-indigo-600 text-white text-[15px] font-semibold shadow-glow shadow-inner-highlight hover:bg-indigo-700 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
@@ -286,49 +296,46 @@ const Login: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <span>Login</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Sign in</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                 </>
               )}
             </button>
-
-            {/* Create Account Buttons - Side by Side on all screen sizes */}
-            <div className="pt-1.5 sm:pt-2 border-t border-slate-100 space-y-1">
-              <p className="text-center text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Don't have an account?
-              </p>
-
-              <div className="grid grid-cols-2 gap-1.5">
-                <Link
-                  to="/register"
-                  className="flex items-center justify-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-blue-50/60 border border-slate-200/90 hover:border-blue-300 text-[11px] sm:text-xs font-bold text-slate-700 hover:text-blue-700 transition-all text-center group shadow-2xs"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform shrink-0" />
-                  <span className="truncate">Create Account as User</span>
-                </Link>
-
-                <Link
-                  to="/register?role=ADMIN"
-                  className="flex items-center justify-center gap-1 px-1.5 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50/60 border border-slate-200/90 hover:border-emerald-300 text-[11px] sm:text-xs font-bold text-slate-700 hover:text-emerald-700 transition-all text-center group shadow-2xs"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform shrink-0" />
-                  <span className="truncate">Create Account as Admin</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* Trust Footer */}
-            <div className="pt-0.5 text-center">
-              <p className="text-[10px] sm:text-xs font-medium text-slate-400 tracking-wide">
-                Secure • Reliable • Efficient
-              </p>
-            </div>
           </form>
+
+          {/* Create Account */}
+          <div className="mt-8">
+            <div className="relative flex items-center justify-center">
+              <span className="absolute inset-x-0 h-px bg-slate-200" />
+              <span className="relative bg-white px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                Don't have an account?
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Link
+                to="/register"
+                className="group flex items-center justify-center gap-2 h-11 rounded-xl ring-1 ring-slate-200 bg-white hover:bg-indigo-50/60 hover:ring-indigo-300 text-sm font-semibold text-slate-700 hover:text-indigo-700 transition-all"
+              >
+                <UserPlus className="w-4 h-4 text-indigo-600 transition-transform group-hover:scale-110" />
+                Create account as User
+              </Link>
+              <Link
+                to="/register?role=ADMIN"
+                className="group flex items-center justify-center gap-2 h-11 rounded-xl ring-1 ring-slate-200 bg-white hover:bg-emerald-50/60 hover:ring-emerald-300 text-sm font-semibold text-slate-700 hover:text-emerald-700 transition-all"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-600 transition-transform group-hover:scale-110" />
+                Create account as Admin
+              </Link>
+            </div>
+          </div>
+
+          <p className="mt-8 text-center text-xs font-medium text-slate-400 tracking-wide lg:hidden">
+            RWANDA PLASTIC INDUSTRY · Secure • Reliable • Efficient
+          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
 
 export default Login;
-

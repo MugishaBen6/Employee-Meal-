@@ -5,7 +5,7 @@ interface SkeletonProps {
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({ className = 'h-4 w-full' }) => {
-  return <div className={`skeleton-shimmer rounded-md ${className}`} />;
+  return <div className={`skeleton-shimmer rounded-lg ${className}`} aria-hidden="true" />;
 };
 
 export default Skeleton;

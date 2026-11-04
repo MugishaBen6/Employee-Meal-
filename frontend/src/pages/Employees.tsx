@@ -326,6 +326,72 @@ export const Employees: React.FC = () => {
     return `${val.toLocaleString()} ${curr || 'RWF'}`;
   };
 
+  // Shared by the desktop table and the mobile card list (same data, same actions).
+  const renderStatusBadge = (emp: EmployeeAttendance) =>
+    emp.mealStatus === 'ATE' ? (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/15 whitespace-nowrap">
+        <CheckCircle2 className="w-3.5 h-3.5" />
+        ATE
+      </span>
+    ) : emp.mealStatus === 'DID_NOT_EAT' ? (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/15 whitespace-nowrap">
+        <XCircle className="w-3.5 h-3.5" />
+        DID NOT EAT
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/15 whitespace-nowrap">
+        <Clock className="w-3.5 h-3.5 text-slate-400" />
+        NOT RECORDED
+      </span>
+    );
+
+  const renderAmount = (emp: EmployeeAttendance) =>
+    emp.mealStatus === 'ATE'
+      ? formatCurrency(emp.amount && emp.amount > 0 ? emp.amount : standardPrice, emp.currency || 'RWF')
+      : emp.mealStatus === 'DID_NOT_EAT'
+      ? formatCurrency(0, emp.currency || 'RWF')
+      : '—';
+
+  const renderActions = (emp: EmployeeAttendance) => (
+    <div className="flex items-center justify-end gap-1">
+      {/* View Meal History */}
+      <button
+        onClick={() => openHistoryModal(emp)}
+        title="View Historical Meal Records"
+        aria-label="View Meal History"
+        className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+      >
+        <History className="w-4 h-4" />
+      </button>
+
+      {/* Edit Employee */}
+      {hasRole('ADMIN', 'HR') && (
+        <>
+          <button
+            onClick={() => openEditModal(emp)}
+            title="Edit Employee Details"
+            aria-label="Edit Employee"
+            className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+
+          {/* Deactivate Employee */}
+          {emp.status === 'ACTIVE' && (
+            <button
+              onClick={() => openDeactivateModal(emp)}
+              title="Deactivate Employee"
+              aria-label="Deactivate Employee"
+              className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+            >
+              <UserX className="w-4 h-4" />
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {toast && (
@@ -580,7 +646,72 @@ export const Employees: React.FC = () => {
           </div>
         )}
 
-        <div className="overflow-x-auto touch-scroll">
+        {/* Mobile: card list (same rows, same actions as the table) */}
+        <div className="md:hidden">
+          {attendanceList.length > 0 && !loading && (
+            <label className="flex items-center gap-2.5 px-1 pb-3 text-xs font-semibold text-slate-500">
+              <input
+                type="checkbox"
+                aria-label="Select all employees on this page"
+                checked={attendanceList.length > 0 && selectedIds.size === attendanceList.length}
+                onChange={handleSelectAll}
+                className="w-[18px] h-[18px] rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+              />
+              Select all on this page
+            </label>
+          )}
+          {loading ? (
+            <div className="space-y-2.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-[92px] w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : attendanceList.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                <Users className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="text-sm font-semibold text-slate-700">No employees found</p>
+              <p className="mt-1 text-xs text-slate-500">Try another date or clear the filters.</p>
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {attendanceList.map((emp) => (
+                <li
+                  key={emp.id}
+                  className={`rounded-2xl ring-1 p-3.5 transition-colors ${
+                    selectedIds.has(emp.id) ? 'ring-indigo-300 bg-indigo-50/40' : 'ring-slate-200/80 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${emp.fullName}`}
+                      checked={selectedIds.has(emp.id)}
+                      onChange={() => handleToggleSelect(emp.id)}
+                      className="mt-1 w-[18px] h-[18px] rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">{emp.fullName}</p>
+                          <p className="text-xs text-slate-500 truncate">{emp.position || '—'}</p>
+                        </div>
+                        <p className="font-mono font-bold text-slate-900 text-sm whitespace-nowrap">{renderAmount(emp)}</p>
+                      </div>
+                      <div className="mt-2.5 flex items-center justify-between gap-2">
+                        {renderStatusBadge(emp)}
+                        {renderActions(emp)}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto touch-scroll">
           <table className="w-full text-left text-sm text-slate-700 min-w-[640px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
@@ -650,77 +781,15 @@ export const Employees: React.FC = () => {
                     </td>
 
                     {/* Meal Status Badge */}
-                    <td className="px-4 py-3.5 text-center">
-                      {emp.mealStatus === 'ATE' ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          ATE
-                        </span>
-                      ) : emp.mealStatus === 'DID_NOT_EAT' ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                          <XCircle className="w-3.5 h-3.5 mr-1" />
-                          DID NOT EAT
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                          <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                          NOT RECORDED
-                        </span>
-                      )}
-                    </td>
+                    <td className="px-4 py-3.5 text-center">{renderStatusBadge(emp)}</td>
 
                     {/* Amount Used */}
-                    <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900">
-                      {emp.mealStatus === 'ATE'
-                        ? formatCurrency(
-                            emp.amount && emp.amount > 0 ? emp.amount : standardPrice,
-                            emp.currency || 'RWF'
-                          )
-                        : emp.mealStatus === 'DID_NOT_EAT'
-                        ? formatCurrency(0, emp.currency || 'RWF')
-                        : '—'}
+                    <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                      {renderAmount(emp)}
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* View Meal History */}
-                        <button
-                          onClick={() => openHistoryModal(emp)}
-                          title="View Historical Meal Records"
-                          aria-label="View Meal History"
-                          className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
-                        >
-                          <History className="w-4 h-4" />
-                        </button>
-
-                        {/* Edit Employee */}
-                        {hasRole('ADMIN', 'HR') && (
-                          <>
-                            <button
-                              onClick={() => openEditModal(emp)}
-                              title="Edit Employee Details"
-                              aria-label="Edit Employee"
-                              className="p-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-
-                            {/* Deactivate Employee */}
-                            {emp.status === 'ACTIVE' && (
-                              <button
-                                onClick={() => openDeactivateModal(emp)}
-                                title="Deactivate Employee"
-                                aria-label="Deactivate Employee"
-                                className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
-                              >
-                                <UserX className="w-4 h-4" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
+                    <td className="px-4 py-3.5 text-right">{renderActions(emp)}</td>
                   </tr>
                 ))
               )}
