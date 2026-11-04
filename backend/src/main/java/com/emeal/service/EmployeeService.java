@@ -13,6 +13,7 @@ import com.emeal.entity.MealStatus;
 import com.emeal.exception.BadRequestException;
 import com.emeal.exception.DuplicateResourceException;
 import com.emeal.exception.ResourceNotFoundException;
+import com.emeal.security.SecurityUtils;
 import com.emeal.repository.EmployeeRepository;
 import com.emeal.repository.MealRecordRepository;
 import org.springframework.data.domain.Page;
@@ -251,7 +252,13 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeDTO createEmployee(CreateEmployeeRequest request) {
-        String code = (request.getEmployeeCode() != null && !request.getEmployeeCode().isBlank())
+        boolean byUserRole = SecurityUtils.isUserRole();
+        if (byUserRole) {
+            validateEmployeeCreatedByUser(request);
+        }
+
+        // USER accounts never choose the employee ID; it is generated like any blank ID.
+        String code = (!byUserRole && request.getEmployeeCode() != null && !request.getEmployeeCode().isBlank())
                 ? request.getEmployeeCode().trim().toUpperCase()
                 : generateNextEmployeeCode();
 
@@ -315,10 +322,38 @@ public class EmployeeService {
             mealRecordService.recordMeal(mealReq);
         }
 
-        auditLogService.logAction("CREATE_EMPLOYEE", "EMPLOYEE", saved.getId().toString(),
-                "Created employee " + saved.getEmployeeCode() + " (" + saved.getFullName() + ")");
+        // Synchronous audit: written in this transaction with the real actor (the async variant
+        // runs on another thread without the login and would record "SYSTEM").
+        auditLogService.logActionSync("CREATE_EMPLOYEE", "EMPLOYEE", saved.getId().toString(),
+                "Created employee " + saved.getEmployeeCode() + " (" + saved.getFullName() + ")"
+                        + ", position " + saved.getPosition() + ", phone " + saved.getPhone());
 
         return EmployeeDTO.fromEntity(saved);
+    }
+
+    /**
+     * A USER may add a person who is not yet on the list only while recording that person's meal:
+     * a name, a meal status and a meal date no later than today are required, and the phone number
+     * must not already belong to an existing employee (to avoid duplicate people).
+     */
+    private void validateEmployeeCreatedByUser(CreateEmployeeRequest request) {
+        String name = (request.getEmployeeName() != null && !request.getEmployeeName().isBlank())
+                ? request.getEmployeeName().trim()
+                : ((request.getFirstName() != null ? request.getFirstName() : "") + " "
+                    + (request.getLastName() != null ? request.getLastName() : "")).trim();
+        if (name.isEmpty()) {
+            throw new BadRequestException("Employee name is required.");
+        }
+        if (request.getMealStatus() == null) {
+            throw new BadRequestException("Select ATE or DID NOT EAT for the new employee.");
+        }
+        if (request.getMealDate() != null && request.getMealDate().isAfter(BusinessTime.today())) {
+            throw new BadRequestException("The meal date cannot be in the future.");
+        }
+        if (request.getPhone() != null && employeeRepository.existsByPhone(request.getPhone().trim())) {
+            throw new DuplicateResourceException(
+                    "An employee with this phone number already exists. Search for them in the list instead.");
+        }
     }
 
     @Transactional

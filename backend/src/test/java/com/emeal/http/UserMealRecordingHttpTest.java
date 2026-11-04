@@ -140,14 +140,96 @@ class UserMealRecordingHttpTest extends HttpTestSupport {
         assertEquals(200, get("/dashboard/my-stats", alice).statusCode());
 
         assertEquals(403, get("/employees?size=5", alice).statusCode());
-        assertEquals(403, send("POST", "/employees", alice,
+        // USER may only add a new person together with their meal record; a plain employee
+        // creation (HR-style, no meal status) is refused.
+        assertEquals(400, send("POST", "/employees", alice,
                 "{\"employeeCode\":\"X1\",\"firstName\":\"X\",\"lastName\":\"Y\",\"department\":\"D\",\"position\":\"P\",\"phone\":\"+250788000999\"}").statusCode());
+        assertFalse(employeeRepository.existsByEmployeeCode("X1"));
         assertEquals(403, get("/reports/daily?startDate=2026-10-01&endDate=2026-10-01", alice).statusCode());
         assertEquals(403, get("/dashboard/statistics", alice).statusCode());
         assertEquals(403, get("/audit-logs", alice).statusCode());
         assertEquals(403, get("/users", alice).statusCode());
         assertEquals(403, get("/settings", alice).statusCode());
         assertEquals(403, get("/expenses/summary", alice).statusCode());
+    }
+
+    // ---------- USER adds a person who is not yet on the list ----------
+
+    @Test
+    void user_addsNewEmployeeWhoAte_withMealRecordedAndOwnedByUser() throws Exception {
+        HttpResponse<String> res = newEmployee(alice, "Grace Mukamana", "+250788123456", "Cleaner",
+                "ATE", "2026-10-03", ",\"amount\":99999,\"employeeCode\":\"HACK1\"");
+        assertEquals(201, res.statusCode(), res.body());
+        JsonNode emp = json(res).path("data");
+        assertEquals("Grace Mukamana", emp.path("fullName").asText());
+        assertEquals("Cleaner", emp.path("position").asText());
+        assertEquals("ACTIVE", emp.path("status").asText());
+        assertNotEquals("HACK1", emp.path("employeeCode").asText(), "USER cannot choose the employee ID");
+
+        // The new person is immediately searchable, and the meal is recorded by alice at the standard price.
+        assertEquals(200, get("/employees/quick-search?query=Mukamana", alice).statusCode());
+        JsonNode mine = json(get("/meals?startDate=2026-10-03&endDate=2026-10-03&size=50", alice)).path("data").path("content");
+        assertEquals(1, mine.size());
+        assertEquals("alice", mine.get(0).path("recordedBy").asText());
+        assertEquals("ATE", mine.get(0).path("mealStatus").asText());
+        assertEquals(0, new BigDecimal("600.00").compareTo(mine.get(0).path("amount").decimalValue()));
+
+        // Audited with the real actor (not "SYSTEM").
+        String empId = emp.path("id").asText();
+        AuditLog created = auditLogRepository.findAll().stream()
+                .filter(l -> "CREATE_EMPLOYEE".equals(l.getAction()) && empId.equals(l.getEntityId()))
+                .findFirst().orElseThrow();
+        assertEquals("alice", created.getUsername());
+        assertEquals("USER", created.getUserRole());
+        assertNotNull(created.getTimestamp());
+    }
+
+    @Test
+    void user_addsNewEmployeeWhoDidNotEat_withZeroAmount() throws Exception {
+        HttpResponse<String> res = newEmployee(alice, "Paul Habimana", "+250788654321", "Guard",
+                "DID_NOT_EAT", "2026-10-03", "");
+        assertEquals(201, res.statusCode(), res.body());
+        JsonNode mine = json(get("/meals?startDate=2026-10-03&endDate=2026-10-03&size=50", alice)).path("data").path("content");
+        assertEquals("DID_NOT_EAT", mine.get(0).path("mealStatus").asText());
+        assertEquals(0, BigDecimal.ZERO.compareTo(mine.get(0).path("amount").decimalValue()));
+    }
+
+    @Test
+    void user_newEmployee_rules_areEnforcedOnTheServer() throws Exception {
+        long before = employeeRepository.count();
+        // A meal status is required (a USER only adds people while recording their meal).
+        assertEquals(400, newEmployee(alice, "No Meal", "+250788000001", "Worker", null, "2026-10-03", "").statusCode());
+        // Phone number already belongs to an existing employee -> no duplicate person.
+        HttpResponse<String> dup = newEmployee(alice, "Copy Person", e1.getPhone(), "Worker", "ATE", "2026-10-03", "");
+        assertEquals(400, dup.statusCode());
+        assertTrue(json(dup).path("message").asText().contains("already exists"));
+        // No future meal dates.
+        assertEquals(400, newEmployee(alice, "Future Person", "+250788000002", "Worker", "ATE",
+                LocalDate.now().plusDays(3).toString(), "").statusCode());
+        // Name, position and phone are required.
+        assertEquals(400, newEmployee(alice, "", "+250788000003", "Worker", "ATE", "2026-10-03", "").statusCode());
+        assertEquals(400, newEmployee(alice, "No Phone", "", "Worker", "ATE", "2026-10-03", "").statusCode());
+        assertEquals(400, newEmployee(alice, "No Position", "+250788000004", "", "ATE", "2026-10-03", "").statusCode());
+        assertEquals(before, employeeRepository.count(), "nothing was created by rejected requests");
+    }
+
+    @Test
+    void user_stillCannotEditDeactivateOrListEmployees() throws Exception {
+        long id = json(newEmployee(alice, "Lucy Uwera", "+250788777666", "Cook", "ATE", "2026-10-03", ""))
+                .path("data").path("id").asLong();
+        assertEquals(403, send("PUT", "/employees/" + id, alice,
+                "{\"employeeName\":\"Changed\",\"phone\":\"+250788777666\",\"position\":\"Cook\"}").statusCode());
+        assertEquals(403, send("DELETE", "/employees/" + id, alice, null).statusCode());
+        assertEquals(403, send("POST", "/employees/bulk-delete", alice, "[" + id + "]").statusCode());
+        assertEquals(403, get("/employees?size=5", alice).statusCode());
+    }
+
+    @Test
+    void hr_createEmployee_isUnchanged() throws Exception {
+        HttpResponse<String> res = send("POST", "/employees", hr,
+                "{\"employeeCode\":\"HR777\",\"employeeName\":\"Hr Created\",\"phone\":\"+250788555444\",\"position\":\"Clerk\"}");
+        assertEquals(201, res.statusCode(), res.body());
+        assertEquals("HR777", json(res).path("data").path("employeeCode").asText(), "HR may still set the ID");
     }
 
     @Test
@@ -164,6 +246,14 @@ class UserMealRecordingHttpTest extends HttpTestSupport {
         String body = "{\"employeeId\":" + emp.getId() + ",\"mealDate\":\"" + date + "\",\"mealStatus\":\"" + status + "\""
                 + (amount != null ? ",\"amount\":" + amount : "") + "}";
         return send("POST", "/meals", token, body);
+    }
+
+    private HttpResponse<String> newEmployee(String token, String name, String phone, String position,
+                                             String status, String date, String extra) throws Exception {
+        String body = "{\"employeeName\":\"" + name + "\",\"phone\":\"" + phone + "\",\"position\":\"" + position + "\""
+                + (status != null ? ",\"mealStatus\":\"" + status + "\"" : "")
+                + ",\"mealDate\":\"" + date + "\"" + extra + "}";
+        return send("POST", "/employees", token, body);
     }
 
     private long id(HttpResponse<String> res) throws Exception {

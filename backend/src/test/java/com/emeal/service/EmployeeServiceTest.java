@@ -66,7 +66,9 @@ class EmployeeServiceTest {
         assertNotNull(result);
         assertEquals("EMP010", result.getEmployeeCode());
         assertEquals("Eric Nshimiyimana", result.getFullName());
-        verify(auditLogService, times(1)).logAction(anyString(), anyString(), anyString(), anyString());
+        // Synchronous audit so the entry records the real actor (the async variant loses the login).
+        verify(auditLogService, times(1)).logActionSync(anyString(), anyString(), anyString(), anyString());
+        verify(auditLogService, never()).logAction(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
