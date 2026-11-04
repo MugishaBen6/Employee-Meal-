@@ -32,6 +32,12 @@ public interface MealRecordRepository extends JpaRepository<MealRecord, Long>, J
 
     List<MealRecord> findByMealDateAndEmployeeDepartmentOrderByEmployeeEmployeeCodeAsc(LocalDate mealDate, String department);
 
+    /** Report range: meal_date BETWEEN start AND end (both inclusive), by date then employee code. */
+    List<MealRecord> findByMealDateBetweenOrderByMealDateAscEmployeeEmployeeCodeAsc(LocalDate startDate, LocalDate endDate);
+
+    List<MealRecord> findByMealDateBetweenAndEmployeeDepartmentOrderByMealDateAscEmployeeEmployeeCodeAsc(
+            LocalDate startDate, LocalDate endDate, String department);
+
     List<MealRecord> findByEmployeeIdOrderByMealDateDesc(Long employeeId);
 
     @Query("SELECT MAX(m.mealDate) FROM MealRecord m")

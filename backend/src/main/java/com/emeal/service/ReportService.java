@@ -8,6 +8,7 @@ import com.emeal.entity.Employee;
 import com.emeal.entity.EmployeeStatus;
 import com.emeal.entity.MealRecord;
 import com.emeal.entity.MealStatus;
+import com.emeal.exception.BadRequestException;
 import com.emeal.repository.EmployeeRepository;
 import com.emeal.repository.MealRecordRepository;
 import com.lowagie.text.*;
@@ -25,6 +26,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,9 +47,66 @@ public class ReportService {
         this.settingsService = settingsService;
     }
 
+    /** Longest allowed report period, in days (inclusive), to keep exports bounded. */
+    public static final int MAX_PERIOD_DAYS = 366;
+
+    /** Inclusive report period. A single-day report has start == end. */
+    public record ReportPeriod(LocalDate start, LocalDate end) {
+        public boolean singleDay() {
+            return start.equals(end);
+        }
+    }
+
+    /**
+     * Resolves the requested period.
+     * <ul>
+     *   <li>startDate / endDate (From / To) take precedence; if only one is given, it is used for both.</li>
+     *   <li>Otherwise the legacy single {@code date} is used for both.</li>
+     *   <li>With no dates at all, today's business date (Africa/Kigali) is used.</li>
+     * </ul>
+     * Rejects From after To, and periods longer than {@link #MAX_PERIOD_DAYS} days.
+     */
+    public ReportPeriod resolvePeriod(LocalDate date, LocalDate startDate, LocalDate endDate) {
+        LocalDate start;
+        LocalDate end;
+        if (startDate != null || endDate != null) {
+            start = (startDate != null) ? startDate : endDate;
+            end = (endDate != null) ? endDate : startDate;
+        } else if (date != null) {
+            start = date;
+            end = date;
+        } else {
+            start = BusinessTime.today();
+            end = start;
+        }
+        if (start.isAfter(end)) {
+            throw new BadRequestException("From Date must be on or before To Date.");
+        }
+        if (ChronoUnit.DAYS.between(start, end) + 1 > MAX_PERIOD_DAYS) {
+            throw new BadRequestException("The report period cannot be longer than " + MAX_PERIOD_DAYS + " days.");
+        }
+        return new ReportPeriod(start, end);
+    }
+
+    /** "Daily_Meal_Report_2026-09-01" for one day, "Meal_Report_2026-09-01_to_2026-09-30" for a range. */
+    public String reportFileBaseName(ReportPeriod period) {
+        return period.singleDay()
+                ? "Daily_Meal_Report_" + period.start()
+                : "Meal_Report_" + period.start() + "_to_" + period.end();
+    }
+
+    /** Single-day report (kept for existing callers). */
     @Transactional(readOnly = true)
     public DailyReportSummaryDTO generateDailyReportSummary(LocalDate date, String department) {
-        LocalDate reportDate = (date != null) ? date : BusinessTime.today();
+        return generateReportSummary(resolvePeriod(date, null, null), department);
+    }
+
+    /**
+     * Report for the inclusive period: only meal records whose meal date is between
+     * period.start and period.end (both included). Excel and PDF exports use this same method.
+     */
+    @Transactional(readOnly = true)
+    public DailyReportSummaryDTO generateReportSummary(ReportPeriod period, String department) {
         String companyName = settingsService.getSettingValue("COMPANY_NAME", "RWANDA PLASTIC INDUSTRY");
         String currency = settingsService.getSettingValue("CURRENCY", "RWF");
 
@@ -60,9 +119,11 @@ public class ReportService {
 
         List<MealRecord> mealRecords;
         if (department != null && !department.isBlank()) {
-            mealRecords = mealRecordRepository.findByMealDateAndEmployeeDepartmentOrderByEmployeeEmployeeCodeAsc(reportDate, department.trim());
+            mealRecords = mealRecordRepository.findByMealDateBetweenAndEmployeeDepartmentOrderByMealDateAscEmployeeEmployeeCodeAsc(
+                    period.start(), period.end(), department.trim());
         } else {
-            mealRecords = mealRecordRepository.findByMealDateOrderByEmployeeEmployeeCodeAsc(reportDate);
+            mealRecords = mealRecordRepository.findByMealDateBetweenOrderByMealDateAscEmployeeEmployeeCodeAsc(
+                    period.start(), period.end());
         }
 
         List<MealRecordDTO> dtos = new ArrayList<>();
@@ -84,9 +145,12 @@ public class ReportService {
                 ? totalExpenditure.divide(BigDecimal.valueOf(ateCount), 2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
-        return DailyReportSummaryDTO.builder()
-                .reportDate(reportDate)
-                .formattedReportDate(reportDate.format(DATE_FORMATTER))
+        String formattedStart = period.start().format(DATE_FORMATTER);
+        String formattedEnd = period.end().format(DATE_FORMATTER);
+
+        DailyReportSummaryDTO summary = DailyReportSummaryDTO.builder()
+                .reportDate(period.start())
+                .formattedReportDate(period.singleDay() ? formattedStart : formattedStart + " - " + formattedEnd)
                 .companyName(companyName)
                 .totalEmployees(totalEmployees)
                 .ateCount(ateCount)
@@ -96,14 +160,21 @@ public class ReportService {
                 .currency(currency)
                 .records(dtos)
                 .build();
+        summary.setStartDate(period.start());
+        summary.setEndDate(period.end());
+        summary.setFormattedStartDate(formattedStart);
+        summary.setFormattedEndDate(formattedEnd);
+        summary.setSingleDay(period.singleDay());
+        return summary;
     }
 
+    /** Excel export with exactly the records of {@link #generateReportSummary} for the same period. */
     @Transactional(readOnly = true)
-    public byte[] generateDailyExcelReport(LocalDate date, String department) throws IOException {
-        DailyReportSummaryDTO summary = generateDailyReportSummary(date, department);
+    public byte[] generateExcelReport(ReportPeriod period, String department) throws IOException {
+        DailyReportSummaryDTO summary = generateReportSummary(period, department);
 
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = workbook.createSheet("Daily Meal Report");
+            Sheet sheet = workbook.createSheet(summary.isSingleDay() ? "Daily Meal Report" : "Meal Report");
 
             org.apache.poi.ss.usermodel.Font titleFont = workbook.createFont();
             titleFont.setBold(true);
@@ -131,14 +202,14 @@ public class ReportService {
 
             org.apache.poi.ss.usermodel.Row titleRow = sheet.createRow(rowIdx++);
             org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
-            titleCell.setCellValue(summary.getCompanyName() + " - DAILY MEAL REPORT");
+            titleCell.setCellValue(summary.getCompanyName() + (summary.isSingleDay() ? " - DAILY MEAL REPORT" : " - MEAL REPORT"));
             titleCell.setCellStyle(titleStyle);
-            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 8));
 
             rowIdx++;
 
             org.apache.poi.ss.usermodel.Row r1 = sheet.createRow(rowIdx++);
-            r1.createCell(0).setCellValue("Report Date:");
+            r1.createCell(0).setCellValue(summary.isSingleDay() ? "Report Date:" : "Report Period:");
             r1.createCell(1).setCellValue(summary.getFormattedReportDate());
             r1.getCell(0).setCellStyle(boldStyle);
 
@@ -165,7 +236,7 @@ public class ReportService {
             rowIdx++;
 
             org.apache.poi.ss.usermodel.Row tableHeader = sheet.createRow(rowIdx++);
-            String[] headers = {"Employee Code", "Employee Name", "Position", "Department", "Meal Status", "Amount (" + summary.getCurrency() + ")", "Recorded By", "Time"};
+            String[] headers = {"Date", "Employee Code", "Employee Name", "Position", "Department", "Meal Status", "Amount (" + summary.getCurrency() + ")", "Recorded By", "Time"};
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell cell = tableHeader.createCell(i);
                 cell.setCellValue(headers[i]);
@@ -175,26 +246,29 @@ public class ReportService {
             if (summary.getRecords().isEmpty()) {
                 org.apache.poi.ss.usermodel.Row emptyRow = sheet.createRow(rowIdx++);
                 org.apache.poi.ss.usermodel.Cell emptyCell = emptyRow.createCell(0);
-                emptyCell.setCellValue("No meal records found for the selected date.");
-                sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 7));
+                emptyCell.setCellValue(summary.isSingleDay()
+                        ? "No meal records found for the selected date."
+                        : "No meal records found for the selected period.");
+                sheet.addMergedRegion(new CellRangeAddress(rowIdx - 1, rowIdx - 1, 0, 8));
             } else {
                 for (MealRecordDTO dto : summary.getRecords()) {
                     org.apache.poi.ss.usermodel.Row dataRow = sheet.createRow(rowIdx++);
-                    dataRow.createCell(0).setCellValue(dto.getEmployeeCode());
-                    dataRow.createCell(1).setCellValue(dto.getEmployeeName());
-                    dataRow.createCell(2).setCellValue(dto.getPosition() != null ? dto.getPosition() : "Worker");
-                    dataRow.createCell(3).setCellValue(dto.getDepartment());
-                    dataRow.createCell(4).setCellValue(dto.getMealStatus().name());
-                    dataRow.createCell(5).setCellValue(dto.getAmount().doubleValue());
-                    dataRow.createCell(6).setCellValue(dto.getRecordedBy());
-                    dataRow.createCell(7).setCellValue(dto.getCreatedAt() != null ? dto.getCreatedAt().format(TIME_FORMATTER) : "-");
+                    dataRow.createCell(0).setCellValue(dto.getMealDate() != null ? dto.getMealDate().format(DATE_FORMATTER) : "-");
+                    dataRow.createCell(1).setCellValue(dto.getEmployeeCode());
+                    dataRow.createCell(2).setCellValue(dto.getEmployeeName());
+                    dataRow.createCell(3).setCellValue(dto.getPosition() != null ? dto.getPosition() : "Worker");
+                    dataRow.createCell(4).setCellValue(dto.getDepartment());
+                    dataRow.createCell(5).setCellValue(dto.getMealStatus().name());
+                    dataRow.createCell(6).setCellValue(dto.getAmount().doubleValue());
+                    dataRow.createCell(7).setCellValue(dto.getRecordedBy());
+                    dataRow.createCell(8).setCellValue(dto.getCreatedAt() != null ? dto.getCreatedAt().format(TIME_FORMATTER) : "-");
                 }
             }
 
             org.apache.poi.ss.usermodel.Row totalRow = sheet.createRow(rowIdx++);
             totalRow.createCell(0).setCellValue("TOTAL EXPENDITURE");
             totalRow.getCell(0).setCellStyle(boldStyle);
-            org.apache.poi.ss.usermodel.Cell totalAmountCell = totalRow.createCell(5);
+            org.apache.poi.ss.usermodel.Cell totalAmountCell = totalRow.createCell(6);
             totalAmountCell.setCellValue(summary.getTotalExpenditure().doubleValue());
             totalAmountCell.setCellStyle(boldStyle);
 
@@ -207,9 +281,10 @@ public class ReportService {
         }
     }
 
+    /** PDF export with exactly the records of {@link #generateReportSummary} for the same period. */
     @Transactional(readOnly = true)
-    public byte[] generateDailyPdfReport(LocalDate date, String department) {
-        DailyReportSummaryDTO summary = generateDailyReportSummary(date, department);
+    public byte[] generatePdfReport(ReportPeriod period, String department) {
+        DailyReportSummaryDTO summary = generateReportSummary(period, department);
 
         Document document = new Document(PageSize.A4, 36, 36, 36, 36);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -224,7 +299,7 @@ public class ReportService {
             document.add(title);
 
             com.lowagie.text.Font subTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, new java.awt.Color(0, 51, 102));
-            Paragraph subTitle = new Paragraph("DAILY EMPLOYEE MEAL REPORT", subTitleFont);
+            Paragraph subTitle = new Paragraph(summary.isSingleDay() ? "DAILY EMPLOYEE MEAL REPORT" : "EMPLOYEE MEAL REPORT", subTitleFont);
             subTitle.setAlignment(Element.ALIGN_CENTER);
             subTitle.setSpacingAfter(15);
             document.add(subTitle);
@@ -234,7 +309,7 @@ public class ReportService {
             summaryTable.setSpacingAfter(15);
             summaryTable.setWidths(new float[]{40, 60});
 
-            addSummaryRow(summaryTable, "Report Date:", summary.getFormattedReportDate());
+            addSummaryRow(summaryTable, summary.isSingleDay() ? "Report Date:" : "Report Period:", summary.getFormattedReportDate());
             addSummaryRow(summaryTable, "Total Active Staff:", String.valueOf(summary.getTotalEmployees()));
             addSummaryRow(summaryTable, "Recorded Ate:", String.valueOf(summary.getAteCount()));
             addSummaryRow(summaryTable, "Recorded Did Not Eat:", String.valueOf(summary.getDidNotEatCount()));
@@ -243,11 +318,11 @@ public class ReportService {
 
             document.add(summaryTable);
 
-            PdfPTable table = new PdfPTable(8);
+            PdfPTable table = new PdfPTable(9);
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{14, 20, 16, 16, 11, 13, 12, 8});
+            table.setWidths(new float[]{13, 9, 17, 14, 13, 12, 12, 11, 7});
 
-            String[] headers = {"Code", "Name", "Position", "Department", "Status", "Amount", "Recorded By", "Time"};
+            String[] headers = {"Date", "Code", "Name", "Position", "Department", "Status", "Amount", "Recorded By", "Time"};
             com.lowagie.text.Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, java.awt.Color.WHITE);
             java.awt.Color headerBg = new java.awt.Color(15, 23, 42);
 
@@ -263,13 +338,16 @@ public class ReportService {
             com.lowagie.text.Font boldDataFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, java.awt.Color.BLACK);
 
             if (summary.getRecords().isEmpty()) {
-                PdfPCell emptyCell = new PdfPCell(new Phrase("No meal records found for the selected date.", dataFont));
-                emptyCell.setColspan(8);
+                PdfPCell emptyCell = new PdfPCell(new Phrase(summary.isSingleDay()
+                        ? "No meal records found for the selected date."
+                        : "No meal records found for the selected period.", dataFont));
+                emptyCell.setColspan(9);
                 emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 emptyCell.setPadding(12);
                 table.addCell(emptyCell);
             } else {
                 for (MealRecordDTO r : summary.getRecords()) {
+                    table.addCell(createPdfCell(r.getMealDate() != null ? r.getMealDate().format(DATE_FORMATTER) : "-", dataFont, Element.ALIGN_CENTER));
                     table.addCell(createPdfCell(r.getEmployeeCode(), dataFont, Element.ALIGN_LEFT));
                     table.addCell(createPdfCell(r.getEmployeeName(), dataFont, Element.ALIGN_LEFT));
                     table.addCell(createPdfCell(r.getPosition() != null ? r.getPosition() : "Worker", dataFont, Element.ALIGN_LEFT));

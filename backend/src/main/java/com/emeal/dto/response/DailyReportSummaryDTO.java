@@ -67,6 +67,30 @@ public class DailyReportSummaryDTO {
     public List<MealRecordDTO> getRecords() { return records; }
     public void setRecords(List<MealRecordDTO> records) { this.records = records; }
 
+    // Report period (inclusive). For a single-day report startDate == endDate.
+    // reportDate equals startDate and formattedReportDate holds the period label,
+    // so clients that only know the single-date fields keep working.
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private String formattedStartDate;
+    private String formattedEndDate;
+    private boolean singleDay;
+
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+
+    public String getFormattedStartDate() { return formattedStartDate; }
+    public void setFormattedStartDate(String formattedStartDate) { this.formattedStartDate = formattedStartDate; }
+
+    public String getFormattedEndDate() { return formattedEndDate; }
+    public void setFormattedEndDate(String formattedEndDate) { this.formattedEndDate = formattedEndDate; }
+
+    public boolean isSingleDay() { return singleDay; }
+    public void setSingleDay(boolean singleDay) { this.singleDay = singleDay; }
+
     public static class DailyReportSummaryDTOBuilder {
         private LocalDate reportDate;
         private String formattedReportDate;

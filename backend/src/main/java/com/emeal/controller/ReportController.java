@@ -1,10 +1,9 @@
 package com.emeal.controller;
 
-import com.emeal.config.BusinessTime;
-
 import com.emeal.dto.response.ApiResponse;
 import com.emeal.dto.response.DailyReportSummaryDTO;
 import com.emeal.service.ReportService;
+import com.emeal.service.ReportService.ReportPeriod;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -18,6 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.time.LocalDate;
 
+/**
+ * Meal reports for an inclusive date period.
+ *
+ * <p>All three endpoints accept {@code startDate} and {@code endDate} (From / To, ISO yyyy-MM-dd).
+ * The legacy {@code date} parameter is still accepted and means a single day. The JSON report,
+ * the Excel file and the PDF are built from the same query, so they always contain exactly the
+ * same records.
+ */
 @RestController
 @RequestMapping("/reports")
 public class ReportController {
@@ -32,20 +39,25 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR')")
     public ResponseEntity<ApiResponse<DailyReportSummaryDTO>> getDailyReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String department) {
-        DailyReportSummaryDTO summary = reportService.generateDailyReportSummary(date, department);
-        return ResponseEntity.ok(ApiResponse.success("Daily report data retrieved", summary));
+        ReportPeriod period = reportService.resolvePeriod(date, startDate, endDate);
+        DailyReportSummaryDTO summary = reportService.generateReportSummary(period, department);
+        return ResponseEntity.ok(ApiResponse.success("Report data retrieved", summary));
     }
 
     @GetMapping("/daily/excel")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR')")
     public ResponseEntity<byte[]> downloadDailyExcel(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String department) throws IOException {
-        LocalDate reportDate = (date != null) ? date : BusinessTime.today();
-        byte[] excelBytes = reportService.generateDailyExcelReport(reportDate, department);
+        ReportPeriod period = reportService.resolvePeriod(date, startDate, endDate);
+        byte[] excelBytes = reportService.generateExcelReport(period, department);
 
-        String filename = "Daily_Meal_Report_" + reportDate + ".xlsx";
+        String filename = reportService.reportFileBaseName(period) + ".xlsx";
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
@@ -57,11 +69,13 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT', 'HR')")
     public ResponseEntity<byte[]> downloadDailyPdf(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String department) {
-        LocalDate reportDate = (date != null) ? date : BusinessTime.today();
-        byte[] pdfBytes = reportService.generateDailyPdfReport(reportDate, department);
+        ReportPeriod period = reportService.resolvePeriod(date, startDate, endDate);
+        byte[] pdfBytes = reportService.generatePdfReport(period, department);
 
-        String filename = "Daily_Meal_Report_" + reportDate + ".pdf";
+        String filename = reportService.reportFileBaseName(period) + ".pdf";
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
