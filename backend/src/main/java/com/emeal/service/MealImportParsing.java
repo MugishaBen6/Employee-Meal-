@@ -102,7 +102,7 @@ public final class MealImportParsing {
     }
 
     /** Smallest and largest believable price of one meal; anything outside is flagged, never guessed. */
-    public static final BigDecimal MIN_MEAL_AMOUNT = new BigDecimal("50");
+    public static final BigDecimal MIN_MEAL_AMOUNT = new BigDecimal("100");
     public static final BigDecimal MAX_MEAL_AMOUNT = new BigDecimal("100000");
 
     /**

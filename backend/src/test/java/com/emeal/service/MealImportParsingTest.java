@@ -50,6 +50,7 @@ class MealImportParsingTest {
         assertEquals(Kind.INVALID, MealImportParsing.readText("1.500", PRICE).kind(), "1.5 RWF must not be imported");
         assertEquals(Kind.INVALID, MealImportParsing.readText("-600", PRICE).kind());
         assertEquals(Kind.INVALID, MealImportParsing.readText("12", PRICE).kind());
+        assertEquals(Kind.INVALID, MealImportParsing.readText("60", PRICE).kind(), "a 60 RWF meal is a typo, not a price");
         assertEquals(Kind.INVALID, MealImportParsing.readText("250000", PRICE).kind());
         assertEquals(Kind.INVALID, MealImportParsing.readText("x", PRICE).kind());
     }

@@ -204,6 +204,13 @@ class HistoricalImportReconciliationHttpTest extends HttpTestSupport {
         assertEquals(200, preview.statusCode(), preview.body());
         assertEquals(2, json(preview).path("data").path("invalidRows").asInt());
 
+        // Rows sent back from a preview (a sample) can never be imported as if they were the file.
+        HttpResponse<String> partial = send("POST", "/employees/import/confirm", admin,
+                "{\"mealDate\":\"2026-10-01\",\"rows\":[{\"rowNumber\":1,\"employeeName\":\"Sample Person\",\"mealDate\":\"2026-10-01\",\"mealStatus\":\"Ate\",\"amountUsed\":600,\"status\":\"VALID\"}]}");
+        assertEquals(400, partial.statusCode(), partial.body());
+        assertTrue(partial.body().contains("Partial imports are not allowed"), partial.body());
+        assertEquals(before, mealRecordRepository.count());
+
         // Day numbers without any month must never fall back to the current month.
         XSSFWorkbook noMonth = new XSSFWorkbook();
         Sheet s2 = noMonth.createSheet("Sheet1");

@@ -175,62 +175,14 @@ public class ExcelImportService {
         return buildPreview(readWorkbookPlan(file, defaultDate));
     }
 
-    /** Imports rows that a client already parsed. They are re-validated here; nothing is trusted. */
-    @Transactional
+    /**
+     * Importing rows sent back by a client is refused: a preview holds only a sample of the file, so
+     * confirming it saved a partial month while reporting success. Files are imported only whole,
+     * through {@link #importExcelDirect}.
+     */
     public ExcelImportResultResponse confirmImport(ExcelImportConfirmRequest request) {
-        if (request == null || request.getRows() == null || request.getRows().isEmpty()) {
-            throw new BadRequestException("No employee rows provided for import.");
-        }
-        String recordedBy = SecurityUtils.getCurrentUsername();
-        BigDecimal standardPrice = settingsService.getStandardMealPrice();
-
-        RawImport raw = new RawImport();
-        for (ExcelEmployeeRowDTO r : request.getRows()) {
-            String status = r.getStatus();
-            if ("INVALID".equalsIgnoreCase(status)) {
-                raw.problems.add(r);
-                continue;
-            }
-            if ("DUPLICATE".equalsIgnoreCase(status)) {
-                raw.skippedRows++;
-                continue;
-            }
-            String name = r.getEmployeeName() == null ? "" : r.getEmployeeName().trim();
-            if (name.isEmpty() || normalizeNameKey(name).isEmpty()) {
-                raw.problems.add(problem(r.getRowNumber(), name, r.getMealDate(), "Employee name is missing or unreadable."));
-                continue;
-            }
-            LocalDate date;
-            if (r.getMealDate() == null || r.getMealDate().isBlank()) {
-                if (request.getMealDate() == null) {
-                    raw.problems.add(problem(r.getRowNumber(), name, null, "Meal date is missing."));
-                    continue;
-                }
-                date = request.getMealDate();
-            } else {
-                try {
-                    date = LocalDate.parse(r.getMealDate().trim());
-                } catch (Exception e) {
-                    raw.problems.add(problem(r.getRowNumber(), name, r.getMealDate(), "Meal date '" + r.getMealDate() + "' is not a valid date."));
-                    continue;
-                }
-            }
-            raw.names.putIfAbsent(normalizeNameKey(name), name.replaceAll("\\s+", " "));
-            String ms = r.getMealStatus() == null ? "" : r.getMealStatus().trim();
-            if (ms.equalsIgnoreCase("ATE")) {
-                MealImportParsing.CellValue v = ateAmount(r.getAmountUsed(), standardPrice);
-                if (v.kind() == MealImportParsing.Kind.ATE) {
-                    raw.meals.add(new ParsedMealItem(name, date, MealStatus.ATE, v.amount(), "Import", r.getRowNumber()));
-                } else {
-                    raw.problems.add(problem(r.getRowNumber(), name, date.toString(), v.reason()));
-                }
-            } else if (ms.equalsIgnoreCase("Not Ate") || ms.equalsIgnoreCase("DID_NOT_EAT")) {
-                raw.noMealCells++;
-            } else {
-                raw.problems.add(problem(r.getRowNumber(), name, date.toString(), "Unknown meal status '" + ms + "'."));
-            }
-        }
-        return savePlan(buildPlan(raw), recordedBy);
+        throw new BadRequestException("Partial imports are not allowed. Nothing was saved. "
+                + "Please refresh the page (Ctrl+Shift+R) and upload the whole Excel file again.");
     }
 
     /* ======================================================================
