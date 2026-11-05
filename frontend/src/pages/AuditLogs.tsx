@@ -4,7 +4,8 @@ import { AuditLog, PageResponse } from '../types';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Skeleton } from '../components/common/Skeleton';
-import { Activity, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, Search, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { PageHero, HeroStat, Toolbar, fmtNumber } from '../components/dashboard/DashboardKit';
 
 export const AuditLogs: React.FC = () => {
   const [logs, setLogs] = useState<PageResponse<AuditLog> | null>(null);
@@ -35,14 +36,26 @@ export const AuditLogs: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Activity & Audit Logs</h2>
-        <p className="text-sm text-slate-500 mt-1">Complete system activity audit trail for Managing Director & Security Admin</p>
-      </div>
+    <div className="space-y-5 sm:space-y-6">
+      <PageHero
+        icon={ShieldCheck}
+        eyebrow="Security · Audit trail"
+        title="Activity & Audit Logs"
+        subtitle="Complete system activity audit trail for Managing Director & Security Admin"
+        stats={
+          <>
+            <HeroStat label="Total entries" value={logs ? fmtNumber(logs.totalElements) : '—'} />
+            <HeroStat label="Pages" value={logs ? fmtNumber(logs.totalPages) : '—'} sub="15 per page" />
+            <HeroStat label="User filter" value={username ? username : 'All'} />
+            <HeroStat label="Action filter" value={action ? action : 'All'} />
+          </>
+        }
+      />
 
-      <Card className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <Toolbar>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Filter by Username..."
@@ -51,8 +64,11 @@ export const AuditLogs: React.FC = () => {
               setUsername(e.target.value);
               setPage(0);
             }}
-            className="w-full h-11 px-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none"
+            className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none"
           />
+          </div>
+          <div className="relative">
+          <Activity className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Filter by Action (RECORD_MEAL, UPDATE_EMPLOYEE...)..."
@@ -61,10 +77,11 @@ export const AuditLogs: React.FC = () => {
               setAction(e.target.value);
               setPage(0);
             }}
-            className="w-full h-11 px-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none"
+            className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:outline-none"
           />
+          </div>
         </div>
-      </Card>
+      </Toolbar>
 
       <Card className="p-0 overflow-hidden shadow-sm">
         {/* Mobile: one card per audit entry (same data as the table) */}

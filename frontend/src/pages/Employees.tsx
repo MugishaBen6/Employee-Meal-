@@ -20,6 +20,16 @@ import ExcelImportModal from '../components/employees/ExcelImportModal';
 import { downloadClientExcelTemplate } from '../utils/templateGenerator';
 import { getKigaliToday } from '../utils/dateUtils';
 import {
+  PageHero,
+  HeroStat,
+  heroBtn,
+  KpiCard,
+  Toolbar,
+  fmtNumber,
+  fmtDayLabel,
+  pct,
+} from '../components/dashboard/DashboardKit';
+import {
   Users,
   Search,
   Plus,
@@ -393,7 +403,7 @@ export const Employees: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-5 sm:space-y-6">
       {toast && (
         <Toast
           message={toast.message}
@@ -403,133 +413,98 @@ export const Employees: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Users className="w-7 h-7 text-indigo-600" />
-            Employees & Daily Meal Attendance
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Monitor daily employee meal participation, statuses, and costs for any selected date
-          </p>
-        </div>
+      <PageHero
+        icon={Users}
+        eyebrow="People · Daily attendance"
+        title="Employees & Daily Meal Attendance"
+        subtitle="Monitor daily employee meal participation, statuses, and costs for any selected date"
+        actions={
+          hasRole('ADMIN', 'HR', 'ACCOUNTANT', 'MANAGING_DIRECTOR') ? (
+            <>
+              {/* Excel template / import stay ADMIN and HR only. */}
+              {hasRole('ADMIN', 'HR') && (
+                <>
+                  <button type="button" onClick={handleDownloadTemplate} className={heroBtn.ghost}>
+                    <Download className="w-4 h-4" />
+                    Download Template
+                  </button>
+                  <button type="button" onClick={() => setIsImportModalOpen(true)} className={heroBtn.ghost}>
+                    <UploadCloud className="w-4 h-4" />
+                    Import Excel
+                  </button>
+                </>
+              )}
 
-        {hasRole('ADMIN', 'HR', 'ACCOUNTANT', 'MANAGING_DIRECTOR') && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-            {/* Excel template / import stay ADMIN and HR only. */}
-            {hasRole('ADMIN', 'HR') && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadTemplate}
-                  className="text-xs sm:text-sm text-slate-700 hover:bg-slate-50 border-slate-300"
-                >
-                  <Download className="w-4 h-4 mr-1.5 text-slate-500" />
-                  Download Template
-                </Button>
+              {/* Add Employee: ADMIN, HR, ACCOUNTANT and MANAGING_DIRECTOR (same 4-field form). */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAddForm((prev) => ({
+                    ...prev,
+                    amount: prev.mealStatus === 'DID_NOT_EAT' ? 0 : (prev.amount && prev.amount > 0 ? prev.amount : standardPrice),
+                  }));
+                  setIsAddModalOpen(true);
+                }}
+                className={heroBtn.primary}
+              >
+                <Plus className="w-4 h-4" />
+                Add Employee
+              </button>
+            </>
+          ) : undefined
+        }
+        stats={
+          <>
+            <HeroStat label="Selected date" value={fmtDayLabel(selectedDate)} sub={selectedDate} />
+            <HeroStat label="Standard rate" value={standardPrice > 0 ? standardPrice.toLocaleString() : '—'} sub={summary.currency || 'RWF'} />
+            <HeroStat label="Showing" value={summaryLoaded ? fmtNumber(totalElements) : '—'} sub="employees" />
+            <HeroStat
+              label="Recorded"
+              value={summaryLoaded ? `${pct(summary.ateCount + summary.didNotEatCount, summary.totalActiveEmployees)}%` : '—'}
+              sub="of active staff"
+            />
+          </>
+        }
+      />
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="text-xs sm:text-sm text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100/70 border-indigo-200"
-                >
-                  <UploadCloud className="w-4 h-4 mr-1.5 text-indigo-600" />
-                  Import Excel
-                </Button>
-              </>
-            )}
-
-            {/* Add Employee: ADMIN, HR, ACCOUNTANT and MANAGING_DIRECTOR (same 4-field form). */}
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setAddForm((prev) => ({
-                  ...prev,
-                  amount: prev.mealStatus === 'DID_NOT_EAT' ? 0 : (prev.amount && prev.amount > 0 ? prev.amount : standardPrice),
-                }));
-                setIsAddModalOpen(true);
-              }}
-              className="text-xs sm:text-sm"
-            >
-              <Plus className="w-4 h-4 mr-1.5" />
-              Add Employee
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Top Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Total Active Employees */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500 bg-white">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Staff</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summaryLoaded ? summary.totalActiveEmployees : '—'}</h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Meal Status: ATE */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500 bg-white">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Meal Status</p>
-              <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1 flex items-center gap-1.5">
-                ATE
-              </h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Standard Meal Rate */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 bg-white">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Standard Rate</p>
-              <h3 className="text-base sm:text-2xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">
-                {standardPrice > 0 ? standardPrice.toLocaleString() : '—'} {summary.currency || 'RWF'}
-              </h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Total Meal Cost */}
-        <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-600 bg-white">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">Total Meal Cost</p>
-              <h3 className="text-base sm:text-2xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">
-                {summaryLoaded ? Number(summary.totalMealCost ?? 0).toLocaleString() : '—'} {summary.currency || 'RWF'}
-              </h3>
-            </div>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-          </div>
-        </Card>
+      {/* Top Summary Cards (real figures for the selected date) */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <KpiCard
+          label="Total Staff"
+          value={summaryLoaded ? fmtNumber(summary.totalActiveEmployees) : '—'}
+          icon={Users}
+          tone="sky"
+          hint="Active employees"
+        />
+        <KpiCard
+          label="Recorded ATE"
+          value={summaryLoaded ? fmtNumber(summary.ateCount) : '—'}
+          icon={CheckCircle2}
+          tone="emerald"
+          hint={fmtDayLabel(selectedDate, true)}
+        />
+        <KpiCard
+          label="Did Not Eat"
+          value={summaryLoaded ? fmtNumber(summary.didNotEatCount) : '—'}
+          icon={XCircle}
+          tone="rose"
+          hint={fmtDayLabel(selectedDate, true)}
+        />
+        <KpiCard
+          label="Total Meal Cost"
+          value={summaryLoaded ? fmtNumber(Number(summary.totalMealCost ?? 0)) : '—'}
+          unit={summary.currency || 'RWF'}
+          icon={Coins}
+          tone="indigo"
+          hint="Recorded meals on this date"
+        />
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-3.5 sm:p-4">
+      <Toolbar>
         <div className="flex flex-col lg:flex-row gap-2.5 sm:gap-3 items-stretch lg:items-center justify-between">
           {/* Date Selector */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 shrink-0">
+          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 h-11 shrink-0 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
             <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
             <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Date:</label>
             <input
@@ -539,7 +514,7 @@ export const Employees: React.FC = () => {
                 setSelectedDate(e.target.value);
                 setPage(0);
               }}
-              className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer w-full"
+              className="bg-transparent text-sm font-semibold text-slate-800 focus:outline-none focus:shadow-none border-0 p-0 cursor-pointer w-full"
             />
           </div>
 
@@ -553,9 +528,9 @@ export const Employees: React.FC = () => {
                 setQuery(e.target.value);
                 setPage(0);
               }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 pl-9"
+              className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none pl-10"
             />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           {/* Department Filter */}
@@ -566,7 +541,7 @@ export const Employees: React.FC = () => {
                 setDepartment(e.target.value);
                 setPage(0);
               }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 text-sm font-medium text-slate-800 focus:outline-none cursor-pointer"
             >
               <option value="">All Departments</option>
               {departments.map((d) => (
@@ -583,7 +558,7 @@ export const Employees: React.FC = () => {
                 setMealStatusFilter(e.target.value);
                 setPage(0);
               }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 text-sm font-medium text-slate-800 focus:outline-none cursor-pointer"
             >
               <option value="">All Meal Status</option>
               <option value="ATE">ATE</option>
@@ -599,7 +574,7 @@ export const Employees: React.FC = () => {
                 setEmployeeStatusFilter(e.target.value as any);
                 setPage(0);
               }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 text-sm font-medium text-slate-800 focus:outline-none cursor-pointer"
             >
               <option value="">All Staff</option>
               <option value="ACTIVE">Active Staff</option>
@@ -607,7 +582,7 @@ export const Employees: React.FC = () => {
             </select>
           </div>
         </div>
-      </Card>
+      </Toolbar>
 
       {/* Main Employee Attendance Table */}
       <Card className="p-0 overflow-hidden">

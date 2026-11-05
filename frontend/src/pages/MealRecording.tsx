@@ -3,6 +3,7 @@ import { mealApi } from '../api/mealApi';
 import { employeeApi } from '../api/employeeApi';
 import { useAuth } from '../context/AuthContext';
 import { getKigaliToday } from '../utils/dateUtils';
+import { PageHero, heroBtn, KpiCard, StackBar, fmtNumber, fmtDayLabel } from '../components/dashboard/DashboardKit';
 import { Employee, MealRecord, MealStatus, QuickMealCheckResponse } from '../types';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -26,6 +27,7 @@ import {
   DollarSign,
   Briefcase,
   Layers,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 export const MealRecording: React.FC = () => {
@@ -317,93 +319,63 @@ export const MealRecording: React.FC = () => {
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12 font-sans">
+    <div className="space-y-5 sm:space-y-6 pb-12">
       {/* Top Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-indigo-900/30">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="p-1.5 bg-amber-500/20 rounded-lg text-amber-400 border border-amber-500/30">
-              <Zap className="w-4 h-4 fill-amber-400" />
-            </span>
-            <span className="text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-wider">
-              Daily Attendance & Meal System
-            </span>
-          </div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">Manual Meal Recording</h2>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
-            Search any employee by name or code to instantly record or update their meal attendance for any date.
-          </p>
-        </div>
+      <PageHero
+        icon={UtensilsCrossed}
+        eyebrow="Daily Attendance & Meal System"
+        title="Manual Meal Recording"
+        subtitle="Search any employee by name or code to instantly record or update their meal attendance for any date."
+        actions={
+          <>
+            {/* Target Date Filter */}
+            <label className="inline-flex items-center gap-2 h-10 rounded-xl bg-white/10 ring-1 ring-white/20 px-3 text-white cursor-pointer focus-within:ring-white/50 transition-all">
+              <Calendar className="w-4 h-4 text-indigo-200" />
+              <span className="text-xs font-semibold text-white/80">Date</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-white text-sm font-semibold focus:outline-none focus:shadow-none border-0 p-0 cursor-pointer [color-scheme:dark]"
+              />
+            </label>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto shrink-0">
-          {/* Target Date Filter */}
-          <div className="bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 flex items-center gap-2 text-white">
-            <Calendar className="w-4 h-4 text-indigo-300" />
-            <span className="text-xs font-semibold text-slate-200">Date:</span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-white text-xs font-mono font-bold focus:outline-none cursor-pointer"
-            />
-          </div>
-
-          {/* Quick Record Modal Trigger */}
-          <Button
-            onClick={() => {
-              setIsModalOpen(true);
-              setTimeout(() => modalSearchInputRef.current?.focus(), 100);
-            }}
-            className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Record Meal</span>
-          </Button>
-        </div>
-      </div>
+            {/* Quick Record Modal Trigger */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsModalOpen(true);
+                setTimeout(() => modalSearchInputRef.current?.focus(), 100);
+              }}
+              className={heroBtn.primary}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Record Meal</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Summary KPI Cards for Active Selected Date */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
-            <Users className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Recorded</p>
-            <p className="text-lg sm:text-xl font-black text-slate-900">{todayRecords.length}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Ate Meals</p>
-            <p className="text-lg sm:text-xl font-black text-emerald-600">{ateCount}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
-            <AlertCircle className="w-5 h-5 text-rose-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Did Not Eat</p>
-            <p className="text-lg sm:text-xl font-black text-rose-600">{didNotEatCount}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
-            <DollarSign className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Amount Used</p>
-            <p className="text-lg sm:text-xl font-black text-indigo-700">{totalAmountUsed.toLocaleString()} RWF</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <KpiCard label="Total Recorded" value={fmtNumber(todayRecords.length)} icon={Users} tone="sky" hint={fmtDayLabel(selectedDate, true)} />
+        <KpiCard
+          label="Ate Meals"
+          value={fmtNumber(ateCount)}
+          icon={CheckCircle2}
+          tone="emerald"
+          footer={
+            <StackBar
+              total={Math.max(1, todayRecords.length)}
+              parts={[
+                { value: ateCount, className: 'bg-emerald-500', label: 'Ate' },
+                { value: didNotEatCount, className: 'bg-rose-400', label: 'Did not eat' },
+              ]}
+            />
+          }
+        />
+        <KpiCard label="Did Not Eat" value={fmtNumber(didNotEatCount)} icon={AlertCircle} tone="rose" hint="Recorded at 0 RWF" />
+        <KpiCard label="Amount Used" value={fmtNumber(totalAmountUsed)} unit="RWF" icon={DollarSign} tone="indigo" hint="Sum of ATE amounts" />
       </div>
 
       {/* Main Grid: Left Column = Manual Recording Form, Right Column = Meal Records Log */}

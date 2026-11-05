@@ -16,6 +16,7 @@ import {
 import { userApi } from '../api/userApi';
 import { User, Role, UserStatus } from '../types';
 import Card from '../components/common/Card';
+import { PageHero, heroBtn, Toolbar } from '../components/dashboard/DashboardKit';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
@@ -308,83 +309,86 @@ const Users: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <UsersIcon className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
-            User Management
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage system access, approve pending registrations, assign roles and security
-          </p>
-        </div>
-        <Button variant="primary" className="w-full sm:w-auto" onClick={() => setIsCreateModalOpen(true)}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Create New User
-        </Button>
-      </div>
-
-      {/* Status Tabs */}
-      <div className="overflow-x-auto touch-scroll flex gap-2 border-b border-slate-200 pb-2.5">
-        {[
-          { label: 'All Users', value: '' },
-          { label: 'Active', value: 'ACTIVE' },
-          { label: 'Pending Approval', value: 'PENDING_APPROVAL' },
-          { label: 'Inactive', value: 'INACTIVE' },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => {
-              setStatusFilter(tab.value as any);
-              setPage(0);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors min-h-[34px] ${
-              statusFilter === tab.value
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            {tab.label}
+      <PageHero
+        icon={UsersIcon}
+        eyebrow="Administration · Access control"
+        title="User Management"
+        subtitle="Manage system access, approve pending registrations, assign roles and security"
+        actions={
+          <button type="button" className={heroBtn.primary} onClick={() => setIsCreateModalOpen(true)}>
+            <UserPlus className="w-4 h-4" />
+            Create New User
           </button>
-        ))}
-      </div>
+        }
+      />
 
-      {/* Filters Card */}
-      <Card className="p-3.5 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search by name, username, or email..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(0);
-              }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 pl-9"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Status tabs + filters */}
+      <Toolbar>
+        <div className="flex flex-col xl:flex-row gap-3 xl:items-center">
+          {/* Status Tabs */}
+          <div className="overflow-x-auto touch-scroll -mx-1 px-1">
+            <div className="inline-flex gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Filter users by status">
+              {[
+                { label: 'All Users', value: '' },
+                { label: 'Active', value: 'ACTIVE' },
+                { label: 'Pending Approval', value: 'PENDING_APPROVAL' },
+                { label: 'Inactive', value: 'INACTIVE' },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  role="tab"
+                  aria-selected={statusFilter === tab.value}
+                  onClick={() => {
+                    setStatusFilter(tab.value as any);
+                    setPage(0);
+                  }}
+                  className={`px-3.5 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-all ${
+                    statusFilter === tab.value
+                      ? 'bg-white text-slate-900 shadow-card ring-1 ring-slate-200/70'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="w-full sm:w-48">
-            <select
-              value={roleFilter}
-              onChange={(e) => {
-                setRoleFilter(e.target.value as any);
-                setPage(0);
-              }}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[38px]"
-            >
-              <option value="">All Roles</option>
-              <option value="ADMIN">Admin</option>
-              <option value="MANAGING_DIRECTOR">Managing Director</option>
-              <option value="ACCOUNTANT">Accountant</option>
-              <option value="HR">HR</option>
-              <option value="USER">User</option>
-            </select>
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 flex-1">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search by name, username, or email..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(0);
+                }}
+                className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none pl-10"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            <div className="w-full sm:w-52">
+              <select
+                value={roleFilter}
+                onChange={(e) => {
+                  setRoleFilter(e.target.value as any);
+                  setPage(0);
+                }}
+                className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 text-sm font-medium text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="">All Roles</option>
+                <option value="ADMIN">Admin</option>
+                <option value="MANAGING_DIRECTOR">Managing Director</option>
+                <option value="ACCOUNTANT">Accountant</option>
+                <option value="HR">HR</option>
+                <option value="USER">User</option>
+              </select>
+            </div>
           </div>
         </div>
-      </Card>
+      </Toolbar>
 
       {/* Users Table */}
       <Card className="p-0 overflow-hidden">

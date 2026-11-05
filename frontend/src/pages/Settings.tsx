@@ -4,6 +4,7 @@ import { Setting } from '../types';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Skeleton } from '../components/common/Skeleton';
+import { PageHero, HeroStat } from '../components/dashboard/DashboardKit';
 import { ToastContainer, ToastMessage } from '../components/common/Toast';
 import { Settings as SettingsIcon, Save, Building2, Coins, Globe2, UtensilsCrossed, SlidersHorizontal } from 'lucide-react';
 
@@ -68,17 +69,27 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  // Saved values (not unsaved edits) for the summary banner.
+  const saved = (key: string) => settings.find((x) => x.settingKey === key)?.settingValue ?? '';
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-display text-2xl font-bold text-slate-900 flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 ring-1 ring-inset ring-indigo-600/10">
-            <SettingsIcon className="w-5 h-5 text-indigo-600" />
-          </span>
-          System Settings
-        </h2>
-        <p className="text-sm text-slate-500 mt-1.5">Configure global application parameters and meal prices</p>
-      </div>
+      <PageHero
+        icon={SettingsIcon}
+        eyebrow="Administration · Configuration"
+        title="System Settings"
+        subtitle="Configure global application parameters and meal prices"
+        stats={
+          loading ? undefined : (
+            <>
+              <HeroStat label="Meal price" value={saved('STANDARD_MEAL_PRICE') ? Number(saved('STANDARD_MEAL_PRICE')).toLocaleString() : '—'} sub={saved('CURRENCY') || 'RWF'} />
+              <HeroStat label="Currency" value={saved('CURRENCY') || '—'} />
+              <HeroStat label="Time zone" value={(saved('TIMEZONE') || '—').split('/').pop()} sub={saved('TIMEZONE') || ''} />
+              <HeroStat label="Settings" value={settings.length} sub="configurable values" />
+            </>
+          )
+        }
+      />
 
       <Card className="p-0 overflow-hidden" title={undefined}>
         <div className="flex items-center gap-2 px-5 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/60">

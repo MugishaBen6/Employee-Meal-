@@ -483,3 +483,68 @@ export const HeroButton: React.FC<{ to: string; children: React.ReactNode; prima
     {children}
   </Link>
 );
+
+/* =====================================================================
+   PageHero: compact banner used at the top of every operational page
+   ===================================================================== */
+export const PageHero: React.FC<{
+  icon: React.ComponentType<{ className?: string }>;
+  eyebrow: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
+  stats?: React.ReactNode;
+  className?: string;
+}> = ({ icon: Icon, eyebrow, title, subtitle, actions, stats, className = '' }) => (
+  <section
+    className={`relative overflow-hidden rounded-3xl text-white shadow-elevated print:hidden ${className}`}
+    style={{
+      background:
+        'radial-gradient(520px 260px at 100% 0%, rgba(122,141,245,0.32), transparent 70%), radial-gradient(420px 220px at 0% 120%, rgba(245,158,11,0.16), transparent 70%), linear-gradient(135deg, #0F1729 0%, #1A2150 60%, #2A347D 100%)',
+    }}
+  >
+    <div
+      className="absolute inset-0 opacity-[0.06] pointer-events-none"
+      style={{
+        backgroundImage:
+          'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)',
+        backgroundSize: '32px 32px',
+        maskImage: 'linear-gradient(90deg, transparent, black 70%)',
+        WebkitMaskImage: 'linear-gradient(90deg, transparent, black 70%)',
+      }}
+      aria-hidden="true"
+    />
+    <div className="relative p-5 sm:p-6 lg:p-7">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+        <div className="flex items-start gap-4 min-w-0">
+          <span className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-md shrink-0">
+            <Icon className="h-6 w-6 text-white" />
+          </span>
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              {eyebrow}
+            </span>
+            <h2 className="mt-1.5 font-display text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight">{title}</h2>
+            {subtitle && <div className="mt-1.5 text-sm text-white/70 leading-relaxed max-w-2xl">{subtitle}</div>}
+          </div>
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0">{actions}</div>}
+      </div>
+      {stats && <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">{stats}</div>}
+    </div>
+  </section>
+);
+
+/** Button styles for use inside PageHero (keeps existing onClick handlers). */
+export const heroBtn = {
+  primary:
+    'inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-sm font-semibold bg-white text-slate-900 shadow-lg shadow-black/20 hover:bg-indigo-50 hover:-translate-y-px transition-all disabled:opacity-60 disabled:cursor-not-allowed',
+  ghost:
+    'inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-sm font-semibold bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/15 hover:-translate-y-px transition-all disabled:opacity-60 disabled:cursor-not-allowed',
+};
+
+/** Filter / toolbar card that sits under a PageHero. */
+export const Toolbar: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <div className={`rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-card p-3.5 sm:p-4 print:hidden ${className}`}>{children}</div>
+);

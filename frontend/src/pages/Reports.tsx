@@ -5,6 +5,7 @@ import { DailyReportSummary } from '../types';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
+import { PageHero, heroBtn, KpiCard, StackBar, Toolbar, fmtNumber } from '../components/dashboard/DashboardKit';
 import { Skeleton } from '../components/common/Skeleton';
 import { ToastContainer, ToastMessage } from '../components/common/Toast';
 import {
@@ -15,6 +16,13 @@ import {
   Printer,
   RefreshCw,
   Search,
+  FileBarChart2,
+  ClipboardList,
+  CheckCircle2,
+  XCircle,
+  Wallet,
+  Coins,
+  Loader2,
 } from 'lucide-react';
 
 /** Returns today's date as YYYY-MM-DD in the Africa/Kigali timezone (UTC+2, no DST). */
@@ -160,53 +168,34 @@ export const Reports: React.FC = () => {
   return (
     <div className="space-y-5 sm:space-y-6 animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 print:hidden">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reports Engine</h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Generate and export official meal expense reports for a selected date range</p>
-        </div>
-
-        <div className="grid grid-cols-3 sm:flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          <Button
-            onClick={handlePrint}
-            size="sm"
-            variant="outline"
-            className="border-slate-300 text-slate-700 hover:bg-slate-100 gap-1.5 sm:gap-2 text-xs sm:text-sm min-h-[38px]"
-          >
-            <Printer className="w-4 h-4 shrink-0 text-slate-600" />
-            <span className="hidden sm:inline">Print Report</span>
-            <span className="sm:hidden">Print</span>
-          </Button>
-
-          <Button
-            onClick={handleDownloadExcel}
-            isLoading={exportingExcel}
-            size="sm"
-            className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 gap-1.5 sm:gap-2 shadow-emerald-600/20 text-xs sm:text-sm min-h-[38px]"
-          >
-            <FileSpreadsheet className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline">Download Excel</span>
-            <span className="sm:hidden">Excel</span>
-          </Button>
-
-          <Button
-            onClick={handleDownloadPdf}
-            isLoading={exportingPdf}
-            size="sm"
-            className="bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 gap-1.5 sm:gap-2 shadow-rose-600/20 text-xs sm:text-sm min-h-[38px]"
-          >
-            <FileText className="w-4 h-4 shrink-0" />
-            <span className="hidden sm:inline">Download PDF</span>
-            <span className="sm:hidden">PDF</span>
-          </Button>
-        </div>
-      </div>
+      <PageHero
+        icon={FileBarChart2}
+        eyebrow="Reports Engine · Exports"
+        title="Meal Reports"
+        subtitle="Generate and export official meal expense reports for a selected date range"
+        actions={
+          <>
+            <button type="button" onClick={handlePrint} className={heroBtn.ghost}>
+              <Printer className="w-4 h-4 shrink-0" />
+              <span>Print</span>
+            </button>
+            <button type="button" onClick={handleDownloadExcel} disabled={exportingExcel} className={heroBtn.ghost}>
+              {exportingExcel ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-300" />}
+              <span>Excel</span>
+            </button>
+            <button type="button" onClick={handleDownloadPdf} disabled={exportingPdf} className={heroBtn.primary}>
+              {exportingPdf ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <FileText className="w-4 h-4 shrink-0 text-rose-600" />}
+              <span>Download PDF</span>
+            </button>
+          </>
+        }
+      />
 
       {/* Filter & Generation Bar */}
-      <Card className="p-3.5 sm:p-4 print:hidden">
+      <Toolbar>
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.15fr_auto] gap-2.5 sm:gap-3 w-full">
-            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 min-h-[42px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
+            <div className={`flex items-center gap-2 bg-white border rounded-xl px-3 min-h-[44px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
               <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
               <label htmlFor="report-from-date" className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">From Date:</label>
               <input
@@ -219,7 +208,7 @@ export const Reports: React.FC = () => {
               />
             </div>
 
-            <div className={`flex items-center gap-2 bg-slate-50 border rounded-xl px-3 min-h-[42px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
+            <div className={`flex items-center gap-2 bg-white border rounded-xl px-3 min-h-[44px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${periodError ? 'border-rose-300' : 'border-slate-200'}`}>
               <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
               <label htmlFor="report-to-date" className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">To Date:</label>
               <input
@@ -232,7 +221,7 @@ export const Reports: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 min-h-[42px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 min-h-[44px] min-w-0 focus-within:bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
               <Filter className="w-4 h-4 text-indigo-600 shrink-0" />
               <label className="text-xs font-semibold text-slate-700 uppercase whitespace-nowrap">Dept:</label>
               <select
@@ -251,7 +240,7 @@ export const Reports: React.FC = () => {
               onClick={fetchReportData}
               isLoading={loading}
               size="sm"
-              className="gap-1.5 text-sm min-h-[42px] sm:col-span-2 xl:col-span-1"
+              className="gap-1.5 text-sm min-h-[44px] sm:col-span-2 xl:col-span-1"
             >
               <Search className="w-4 h-4 shrink-0" />
               <span>Generate report</span>
@@ -267,7 +256,7 @@ export const Reports: React.FC = () => {
         {periodError && (
           <p className="mt-2 text-xs font-medium text-rose-600" role="alert">{periodError}</p>
         )}
-      </Card>
+      </Toolbar>
 
       {/* Official Print Header */}
       <div className="hidden print:block text-center border-b pb-4 mb-4">
@@ -282,35 +271,47 @@ export const Reports: React.FC = () => {
 
       {/* Summary Cards */}
       {loading || !summary ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Skeleton className="h-24 sm:h-28 rounded-xl" />
-          <Skeleton className="h-24 sm:h-28 rounded-xl" />
-          <Skeleton className="h-24 sm:h-28 rounded-xl" />
-          <Skeleton className="h-24 sm:h-28 rounded-xl" />
-          <Skeleton className="h-24 sm:h-28 rounded-xl col-span-2 sm:col-span-2 lg:col-span-1" />
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className={`h-[132px] rounded-2xl ${i === 4 ? 'col-span-2 lg:col-span-1' : ''}`} />
+          ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-sky-500 shadow-sm">
-            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Total Records ({formattedDisplayDate})</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mt-0.5 sm:mt-1">{summary.records.length}</h3>
-          </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-emerald-500 shadow-sm">
-            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Ate</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-emerald-600 mt-0.5 sm:mt-1">{summary.ateCount}</h3>
-          </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-rose-500 shadow-sm">
-            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Did Not Eat</p>
-            <h3 className="text-lg sm:text-2xl font-bold text-rose-600 mt-0.5 sm:mt-1">{summary.didNotEatCount}</h3>
-          </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-indigo-500 col-span-2 sm:col-span-1 shadow-sm">
-            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Total Expenditure</p>
-            <h3 className="text-base sm:text-xl font-bold text-indigo-700 mt-0.5 sm:mt-1 truncate">{summary.totalExpenditure.toLocaleString()} {summary.currency}</h3>
-          </Card>
-          <Card className="p-3.5 sm:p-4 border-l-4 border-l-amber-500 col-span-2 sm:col-span-1 shadow-sm">
-            <p className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase">Average Meal Cost</p>
-            <h3 className="text-base sm:text-xl font-bold text-amber-700 mt-0.5 sm:mt-1 truncate">{summary.averageMealCost.toLocaleString()} {summary.currency}</h3>
-          </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+          <KpiCard label="Total Records" value={fmtNumber(summary.records.length)} icon={ClipboardList} tone="sky" hint={formattedDisplayDate} />
+          <KpiCard
+            label="Ate"
+            value={fmtNumber(summary.ateCount)}
+            icon={CheckCircle2}
+            tone="emerald"
+            footer={
+              <StackBar
+                total={Math.max(1, summary.ateCount + summary.didNotEatCount)}
+                parts={[
+                  { value: summary.ateCount, className: 'bg-emerald-500', label: 'Ate' },
+                  { value: summary.didNotEatCount, className: 'bg-rose-400', label: 'Did not eat' },
+                ]}
+              />
+            }
+          />
+          <KpiCard label="Did Not Eat" value={fmtNumber(summary.didNotEatCount)} icon={XCircle} tone="rose" hint="Recorded at 0" />
+          <KpiCard
+            label="Total Expenditure"
+            value={fmtNumber(summary.totalExpenditure)}
+            unit={summary.currency}
+            icon={Wallet}
+            tone="indigo"
+            hint="Sum of stored amounts"
+          />
+          <KpiCard
+            label="Average Meal Cost"
+            value={fmtNumber(summary.averageMealCost)}
+            unit={summary.currency}
+            icon={Coins}
+            tone="amber"
+            hint="Per ATE record"
+            className="col-span-2 lg:col-span-1"
+          />
         </div>
       )}
 
