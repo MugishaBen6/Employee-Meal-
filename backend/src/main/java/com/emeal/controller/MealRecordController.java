@@ -7,7 +7,10 @@ import com.emeal.dto.response.MealRecordDTO;
 import com.emeal.dto.response.PageResponse;
 import com.emeal.dto.response.QuickMealCheckResponse;
 import com.emeal.entity.MealStatus;
+import com.emeal.service.MealDataMaintenanceService;
 import com.emeal.service.MealRecordService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -23,9 +26,48 @@ import java.util.List;
 public class MealRecordController {
 
     private final MealRecordService mealRecordService;
+    private final MealDataMaintenanceService maintenanceService;
 
-    public MealRecordController(MealRecordService mealRecordService) {
+    public MealRecordController(MealRecordService mealRecordService, MealDataMaintenanceService maintenanceService) {
         this.mealRecordService = mealRecordService;
+        this.maintenanceService = maintenanceService;
+    }
+
+    // ---- ADMIN data maintenance: summary -> CSV backup -> confirmed delete ----
+
+    @GetMapping("/maintenance/summary")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> maintenanceSummary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(ApiResponse.success("Meal record summary",
+                maintenanceService.summary(maintenanceService.scope(startDate, endDate))));
+    }
+
+    @GetMapping("/maintenance/backup")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> maintenanceBackup(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        MealDataMaintenanceService.Scope scope = maintenanceService.scope(startDate, endDate);
+        String name = "meal_records_backup_" + (startDate == null ? "all" : startDate + "_to_" + endDate)
+                + "_" + com.emeal.config.BusinessTime.nowForDisplay().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")
+                .contentType(new MediaType("text", "csv", java.nio.charset.StandardCharsets.UTF_8))
+                .body(maintenanceService.backupCsv(scope));
+    }
+
+    @DeleteMapping("/maintenance")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> maintenanceDelete(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam long expectedCount,
+            @RequestParam String confirm) {
+        java.util.Map<String, Object> result = maintenanceService.delete(
+                maintenanceService.scope(startDate, endDate), expectedCount, confirm);
+        return ResponseEntity.ok(ApiResponse.success("Deleted " + result.get("deletedRecords") + " meal record(s)", result));
     }
 
     @PostMapping

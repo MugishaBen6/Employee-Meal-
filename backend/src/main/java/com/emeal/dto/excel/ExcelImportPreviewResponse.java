@@ -21,6 +21,34 @@ public class ExcelImportPreviewResponse {
         this.rows = rows;
     }
 
+
+    // ---- Import summary (real figures computed from the parsed file) ----
+    private int ateRecords;
+    private int noMealCells;
+    private int newEmployees;
+    private String firstMealDate;
+    private String lastMealDate;
+    private java.math.BigDecimal totalAmount = java.math.BigDecimal.ZERO;
+    private List<String> months = new java.util.ArrayList<>();
+    private List<String> warnings = new java.util.ArrayList<>();
+
+    public int getAteRecords() { return ateRecords; }
+    public void setAteRecords(int ateRecords) { this.ateRecords = ateRecords; }
+    public int getNoMealCells() { return noMealCells; }
+    public void setNoMealCells(int noMealCells) { this.noMealCells = noMealCells; }
+    public int getNewEmployees() { return newEmployees; }
+    public void setNewEmployees(int newEmployees) { this.newEmployees = newEmployees; }
+    public String getFirstMealDate() { return firstMealDate; }
+    public void setFirstMealDate(String firstMealDate) { this.firstMealDate = firstMealDate; }
+    public String getLastMealDate() { return lastMealDate; }
+    public void setLastMealDate(String lastMealDate) { this.lastMealDate = lastMealDate; }
+    public java.math.BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(java.math.BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public List<String> getMonths() { return months; }
+    public void setMonths(List<String> months) { this.months = months; }
+    public List<String> getWarnings() { return warnings; }
+    public void setWarnings(List<String> warnings) { this.warnings = warnings; }
+
     public static ExcelImportPreviewResponseBuilder builder() {
         return new ExcelImportPreviewResponseBuilder();
     }

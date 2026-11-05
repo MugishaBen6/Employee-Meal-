@@ -230,7 +230,7 @@ public class ReportService {
 
             org.apache.poi.ss.usermodel.Row r5 = sheet.createRow(rowIdx++);
             r5.createCell(0).setCellValue("Total Expenditure:");
-            r5.createCell(1).setCellValue(summary.getTotalExpenditure().doubleValue() + " " + summary.getCurrency());
+            r5.createCell(1).setCellValue(summary.getTotalExpenditure().toPlainString() + " " + summary.getCurrency());
             r5.getCell(0).setCellStyle(boldStyle);
 
             rowIdx++;

@@ -92,10 +92,9 @@ public class EmployeeService {
         // Always positive; a missing or invalid setting fails clearly in SettingsService.
         BigDecimal standardMealPrice = settingsService.getStandardMealPrice();
 
+        // Exact sum of the stored ATE amounts for the day; never estimated from counts.
         BigDecimal dayMealCost = mealRecordRepository.sumAmountByMealDate(targetDate);
-        if ((dayMealCost == null || dayMealCost.compareTo(BigDecimal.ZERO) == 0) && dayAteCount > 0) {
-            dayMealCost = BigDecimal.valueOf(dayAteCount).multiply(standardMealPrice);
-        } else if (dayMealCost == null) {
+        if (dayMealCost == null) {
             dayMealCost = BigDecimal.ZERO;
         }
 

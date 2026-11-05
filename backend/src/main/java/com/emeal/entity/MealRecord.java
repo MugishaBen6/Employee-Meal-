@@ -43,6 +43,26 @@ public class MealRecord {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /** 'MANUAL' or 'IMPORT'; NULL for rows created before V9. */
+    @Column(name = "source", length = 20)
+    private String source;
+
+    /** When an Excel import last wrote this row (NULL for manual records). Never a meal date. */
+    @Column(name = "imported_at")
+    private LocalDateTime importedAt;
+
+    @PrePersist
+    void defaultSource() {
+        if (source == null) {
+            source = "MANUAL";
+        }
+    }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+    public LocalDateTime getImportedAt() { return importedAt; }
+    public void setImportedAt(LocalDateTime importedAt) { this.importedAt = importedAt; }
+
     public MealRecord() {
     }
 

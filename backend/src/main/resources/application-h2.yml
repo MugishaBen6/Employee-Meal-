@@ -16,8 +16,10 @@ spring:
     # cannot parse. V7 and V8 contain indexes only (no tables/columns), so the
     # in-memory H2 schema is still complete and Hibernate "validate" passes.
     # Production (PostgreSQL) is unaffected: this file is only loaded with the
-    # "h2" profile. Raise this target if a future migration changes the schema.
+    # "h2" profile. V9 only adds two nullable columns; H2 receives them from the
+    # H2-only callback db/h2/afterMigrate.sql (PostgreSQL runs the real V9).
     target: "6"
+    locations: classpath:db/migration,classpath:db/h2
   h2:
     console:
       enabled: true
