@@ -464,7 +464,8 @@ public class ExcelImportService {
         plan.skippedRows = raw.skippedRows;
 
         List<Employee> employees = employeeRepository.findAll();
-        Map<String, Set<Long>> exact = new HashMap<>();
+        Map<String, Set<Long>> sameOrder = new HashMap<>(); // "first last" exactly as registered
+        Map<String, Set<Long>> exact = new HashMap<>();     // also "last first" and employee code
         Map<String, Set<Long>> firstNameOnly = new HashMap<>();
         Map<Long, Employee> byId = new HashMap<>();
         for (Employee e : employees) {
@@ -472,6 +473,7 @@ public class ExcelImportService {
             plan.codeById.put(e.getId(), e.getEmployeeCode());
             String first = e.getFirstName() == null ? "" : e.getFirstName();
             String last = e.getLastName() == null ? "" : e.getLastName();
+            addKey(sameOrder, first + " " + last, e.getId());
             addKey(exact, first + " " + last, e.getId());
             addKey(exact, last + " " + first, e.getId());
             addKey(exact, e.getEmployeeCode(), e.getId());
@@ -481,7 +483,12 @@ public class ExcelImportService {
         Set<String> ambiguous = new HashSet<>();
         for (Map.Entry<String, String> n : raw.names.entrySet()) {
             String key = n.getKey();
-            Set<Long> ids = exact.getOrDefault(key, Set.of());
+            // A name written in the same order as a registered employee wins over a reversed match
+            // (e.g. "Bernadette Uwamahoro" is EMP018, not EMP381 "Uwamahoro Bernadette").
+            Set<Long> ids = sameOrder.getOrDefault(key, Set.of());
+            if (ids.isEmpty()) {
+                ids = exact.getOrDefault(key, Set.of());
+            }
             if (ids.isEmpty()) {
                 ids = firstNameOnly.getOrDefault(key, Set.of());
             }

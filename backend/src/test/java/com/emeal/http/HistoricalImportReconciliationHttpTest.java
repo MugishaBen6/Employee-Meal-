@@ -246,6 +246,25 @@ class HistoricalImportReconciliationHttpTest extends HttpTestSupport {
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM meal_records m JOIN employees e ON e.id = m.employee_id " +
                 "WHERE e.employee_code = 'EMP002' AND m.meal_date = '2026-10-01' AND m.amount = 600", Integer.class));
         assertEquals(2, employeeRepository.count(), "no new employee for a matched name");
+
+        // Same person registered twice with first/last swapped: the same-order record is used.
+        jdbc.update("INSERT INTO employees (employee_code, first_name, last_name, department, position, phone, status, created_at, updated_at) VALUES " +
+                "('EMP018','Bernadette','Uwamahoro','General','Worker','', 'ACTIVE', NOW(), NOW()), ('EMP381','Uwamahoro','Bernadette','General','Worker','', 'ACTIVE', NOW(), NOW())");
+        XSSFWorkbook swapped = new XSSFWorkbook();
+        Sheet s3 = swapped.createSheet("October 2026");
+        header(s3, "Names", "1", "2");
+        Row a1 = s3.createRow(1);
+        a1.createCell(0).setCellValue("Bernadette Uwamahoro");
+        a1.createCell(1).setCellValue(600);
+        Row a2 = s3.createRow(2);
+        a2.createCell(0).setCellValue("Uwamahoro Bernadette");
+        a2.createCell(2).setCellValue(600);
+        HttpResponse<String> sw = upload("swapped.xlsx", bytes(swapped));
+        assertEquals(200, sw.statusCode(), sw.body());
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM meal_records m JOIN employees e ON e.id = m.employee_id " +
+                "WHERE e.employee_code = 'EMP018' AND m.meal_date = '2026-10-01'", Integer.class));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM meal_records m JOIN employees e ON e.id = m.employee_id " +
+                "WHERE e.employee_code = 'EMP381' AND m.meal_date = '2026-10-02'", Integer.class));
     }
 
     // ======================================================================
