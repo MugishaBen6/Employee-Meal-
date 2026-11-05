@@ -42,4 +42,43 @@ export const mealApi = {
     const res = await axiosClient.delete<ApiResponse<void>>(`/meals/${id}`);
     return res.data;
   },
+
+  // ---- ADMIN data maintenance (summary -> CSV backup -> confirmed delete) ----
+
+  maintenanceSummary: async (range?: { startDate: string; endDate: string }) => {
+    const res = await axiosClient.get<ApiResponse<MealDataSummary>>('/meals/maintenance/summary', { params: range });
+    return res.data.data;
+  },
+
+  /** Downloads the full CSV backup and returns the saved filename. */
+  downloadMaintenanceBackup: async (range?: { startDate: string; endDate: string }) => {
+    const res = await axiosClient.get('/meals/maintenance/backup', { params: range, responseType: 'blob' });
+    const match = /filename="?([^"]+)"?/i.exec(res.headers['content-disposition'] || '');
+    const filename = match ? match[1] : 'meal_records_backup.csv';
+    const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return filename;
+  },
+
+  maintenanceDelete: async (expectedCount: number, range?: { startDate: string; endDate: string }) => {
+    const res = await axiosClient.delete<ApiResponse<MealDataSummary & { deletedRecords: number }>>('/meals/maintenance', {
+      params: { ...range, expectedCount, confirm: 'DELETE' },
+    });
+    return res.data;
+  },
 };
+
+export interface MealDataSummary {
+  totalRecords: number;
+  ateCount: number;
+  didNotEatCount: number;
+  totalAmount: number;
+  firstMealDate: string | null;
+  lastMealDate: string | null;
+}

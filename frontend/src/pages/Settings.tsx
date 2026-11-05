@@ -6,6 +6,7 @@ import { Button } from '../components/common/Button';
 import { Skeleton } from '../components/common/Skeleton';
 import { PageHero, HeroStat } from '../components/dashboard/DashboardKit';
 import { ToastContainer, ToastMessage } from '../components/common/Toast';
+import { MealDataMaintenance } from '../components/settings/MealDataMaintenance';
 import { Settings as SettingsIcon, Save, Building2, Coins, Globe2, UtensilsCrossed, SlidersHorizontal } from 'lucide-react';
 
 /** Friendly names and icons for known setting keys (keys and values are unchanged). */
@@ -164,6 +165,8 @@ export const SettingsPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      <MealDataMaintenance onToast={addToast} />
 
       <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>

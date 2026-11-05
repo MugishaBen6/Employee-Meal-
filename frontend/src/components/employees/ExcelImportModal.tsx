@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { employeeApi } from '../../api/employeeApi';
 import { downloadClientExcelTemplate } from '../../utils/templateGenerator';
-import { parseExcelOrCsvClient } from '../../utils/excelParser';
 import { getKigaliToday } from '../../utils/dateUtils';
 import {
   ExcelEmployeeRow,
@@ -35,6 +34,12 @@ interface ExcelImportModalProps {
 }
 
 type Step = 'upload' | 'preview' | 'importing' | 'result';
+
+/** yyyy-mm-dd -> dd/mm/yyyy (no timezone conversion). */
+const fmtDay = (iso: string) => {
+  const [y, m, d] = iso.split('-');
+  return d && m && y ? `${d}/${m}/${y}` : iso;
+};
 
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   isOpen,
@@ -133,14 +138,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setErrorMessage(null);
 
     try {
-      let data: ExcelImportPreviewResponse | null = null;
-      try {
-        // Try server-side POI parser first for precise date and employee matching
-        data = await employeeApi.previewExcelImport(selectedFile);
-      } catch (serverErr) {
-        console.warn('Server parsing error, attempting client parsing fallback:', serverErr);
-        data = await parseExcelOrCsvClient(selectedFile);
-      }
+      // The server applies exactly the same validation as the import itself, so there is
+      // deliberately no client-side parsing fallback.
+      const data: ExcelImportPreviewResponse | null = await employeeApi.previewExcelImport(selectedFile);
 
       if (!data || !data.rows || data.rows.length === 0) {
         throw new Error('No employee records found in the uploaded file.');
@@ -159,7 +159,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setStep('preview');
     } catch (err: any) {
       setErrorMessage(
-        err.message || err.response?.data?.message || 'Failed to parse and validate Excel file'
+        err.response?.data?.message || err.message || 'Failed to parse and validate Excel file'
       );
     } finally {
       setLoading(false);
@@ -199,31 +199,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     setErrorMessage(null);
 
     try {
-      let rawRes: any;
-      try {
-        rawRes = await employeeApi.uploadAndImportExcel(selectedFile, mealDate);
-      } catch (uploadErr: any) {
-        console.warn('Direct upload endpoint encountered an issue, trying preview + confirm fallback:', uploadErr);
-        let previewDataToConfirm: ExcelImportPreviewResponse;
-        try {
-          previewDataToConfirm = await employeeApi.previewExcelImport(selectedFile);
-        } catch (previewErr) {
-          previewDataToConfirm = await parseExcelOrCsvClient(selectedFile);
-        }
-
-        const validRows = (previewDataToConfirm.rows || []).filter(
-          (r) => r.valid === true || r.status === 'VALID' || r.status === undefined
-        );
-
-        if (validRows.length === 0) {
-          throw uploadErr;
-        }
-
-        rawRes = await employeeApi.confirmExcelImport({
-          mealDate,
-          rows: validRows,
-        });
-      }
+      // Server-side import only: if the server rejects the file (for example an unreadable amount
+      // or a sheet without a month), nothing is saved and the reason is shown.
+      const rawRes: any = await employeeApi.uploadAndImportExcel(selectedFile, mealDate);
 
       const successCount = rawRes.mealRecordsCreated ?? rawRes.importedCount ?? rawRes.successCount ?? 0;
       const employeesProcessed = rawRes.employeesProcessed ?? 0;
@@ -244,6 +222,14 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         importedEmployeeIds: rawRes.importedEmployeeIds || [],
         errorRows: rawRes.errorRows || rawRes.failedRows || [],
         message: rawRes.message || `Import Completed: ${employeesProcessed} employee(s) processed, ${successCount} meal record(s) created (${ateCount} ATE, ${didNotEatCount} DID NOT EAT).`,
+        recordsCreated: rawRes.recordsCreated,
+        recordsUpdated: rawRes.recordsUpdated,
+        totalAmount: rawRes.totalAmount,
+        months: rawRes.months || [],
+        warnings: rawRes.warnings || [],
+        newEmployees: rawRes.newEmployees,
+        firstMealDate: rawRes.firstMealDate,
+        lastMealDate: rawRes.lastMealDate,
       };
 
       setImportResult(result);
@@ -306,6 +292,14 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         importedEmployeeIds: rawRes.importedEmployeeIds || [],
         errorRows: rawRes.errorRows || rawRes.failedRows || [],
         message: rawRes.message || `Import Completed: ${employeesProcessed} employee(s) processed, ${successCount} meal record(s) created (${ateCount} ATE, ${didNotEatCount} DID NOT EAT).`,
+        recordsCreated: rawRes.recordsCreated,
+        recordsUpdated: rawRes.recordsUpdated,
+        totalAmount: rawRes.totalAmount,
+        months: rawRes.months || [],
+        warnings: rawRes.warnings || [],
+        newEmployees: rawRes.newEmployees,
+        firstMealDate: rawRes.firstMealDate,
+        lastMealDate: rawRes.lastMealDate,
       };
 
       setImportResult(result);
@@ -442,7 +436,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-indigo-600" />
-                  Target Attendance Date
+                  Meal Date (single-day sheets only)
                 </label>
                 <input
                   type="date"
@@ -451,7 +445,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   className="w-full text-sm font-medium border border-slate-300 rounded-xl px-3 py-2 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-xs"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Imported meal attendance will be recorded for this date.
+                  Monthly sheets keep the real dates from their header row (e.g. 1–30 September). This date is used only for a sheet without date columns.
                 </p>
               </div>
 
@@ -592,6 +586,41 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         {/* STEP 2: PREVIEW & VALIDATE */}
         {step === 'preview' && previewData && (
           <div className="space-y-4">
+            {/* What will be saved, computed by the server from the whole file */}
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold text-indigo-950">
+                  {(previewData.ateRecords ?? 0).toLocaleString()} ATE meal record(s)
+                  {previewData.firstMealDate && previewData.lastMealDate && (
+                    <> · meal dates {fmtDay(previewData.firstMealDate)} – {fmtDay(previewData.lastMealDate)}</>
+                  )}
+                </p>
+                <p className="text-sm font-bold tabular-nums text-indigo-950">
+                  Total {Number(previewData.totalAmount ?? 0).toLocaleString()} RWF
+                </p>
+              </div>
+              {previewData.months && previewData.months.length > 0 && (
+                <ul className="text-xs text-indigo-900/80 space-y-0.5">
+                  {previewData.months.map((m) => (
+                    <li key={m}>• {m}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[11px] text-slate-500">
+                Every imported record is saved as ATE. Empty cells are not recorded
+                {previewData.noMealCells ? ` (${previewData.noMealCells.toLocaleString()} empty)` : ''}
+                {previewData.newEmployees ? ` · ${previewData.newEmployees} new employee(s) will be added` : ''}.
+              </p>
+              {previewData.warnings?.map((w) => (
+                <p key={w} className="text-[11px] font-medium text-amber-700">⚠ {w}</p>
+              ))}
+              {previewData.invalidRows > 0 && (
+                <p className="text-xs font-semibold text-rose-700">
+                  {previewData.invalidRows} problem(s) must be fixed in the file before it can be imported. Nothing will be saved until then.
+                </p>
+              )}
+            </div>
+
             {/* Validation Statistics Banner */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -872,7 +901,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 <Button
                   type="button"
                   variant="primary"
-                  disabled={selectedRowIndices.size === 0 || loading}
+                  disabled={
+                    loading ||
+                    previewData.invalidRows > 0 ||
+                    (selectedFile ? (previewData.ateRecords ?? 0) === 0 : selectedRowIndices.size === 0)
+                  }
                   onClick={handleConfirmImport}
                 >
                   {loading ? (
@@ -882,7 +915,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                     </>
                   ) : (
                     <>
-                      Import {selectedRowIndices.size} Meal Record(s)
+                      Import {(selectedFile ? previewData.ateRecords ?? 0 : selectedRowIndices.size).toLocaleString()} Meal Record(s)
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
@@ -956,10 +989,12 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </div>
                 <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl shadow-xs">
                   <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">
-                    Records Created
+                    New / Updated
                   </span>
                   <span className="text-xl font-bold text-indigo-700">
-                    {importResult.mealRecordsCreated ?? importResult.importedCount ?? importResult.successCount}
+                    {importResult.recordsCreated !== undefined
+                      ? `${importResult.recordsCreated} / ${importResult.recordsUpdated ?? 0}`
+                      : importResult.mealRecordsCreated ?? importResult.importedCount ?? importResult.successCount}
                   </span>
                 </div>
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs">
@@ -970,15 +1005,25 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                     {importResult.ateCount ?? 0}
                   </span>
                 </div>
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl shadow-xs">
-                  <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">
-                    DID NOT EAT
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
+                    Total Amount
                   </span>
-                  <span className="text-xl font-bold text-rose-700">
-                    {importResult.didNotEatCount ?? 0}
+                  <span className="text-xl font-bold text-amber-800 tabular-nums">
+                    {Number(importResult.totalAmount ?? 0).toLocaleString()} <span className="text-xs">RWF</span>
                   </span>
                 </div>
               </div>
+              {importResult.months && importResult.months.length > 0 && (
+                <ul className="text-xs text-slate-600 space-y-0.5 pt-1">
+                  {importResult.months.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              )}
+              {importResult.warnings?.map((w) => (
+                <p key={w} className="text-[11px] font-medium text-amber-700">⚠ {w}</p>
+              ))}
             </div>
 
             {/* Detailed Failed Rows List if any errors */}
@@ -1031,7 +1076,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 type="button"
                 variant="primary"
                 onClick={() => {
-                  const primaryDate = previewData?.rows?.find((r) => r.mealDate)?.mealDate || mealDate;
+                  const primaryDate = importResult.lastMealDate || previewData?.rows?.find((r) => r.mealDate)?.mealDate || mealDate;
                   handleClose();
                   if ((importResult.successCount ?? 0) > 0) {
                     onSuccess(primaryDate);

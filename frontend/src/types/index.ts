@@ -296,6 +296,15 @@ export interface ExcelImportPreviewResponse {
   duplicateRows: number;
   rows: ExcelEmployeeRow[];
   summaryMessage?: string;
+  // Import summary computed by the server from the whole file
+  ateRecords?: number;
+  noMealCells?: number;
+  newEmployees?: number;
+  firstMealDate?: string;
+  lastMealDate?: string;
+  totalAmount?: number;
+  months?: string[];
+  warnings?: string[];
 }
 
 export interface ExcelImportConfirmRequest {
@@ -318,5 +327,16 @@ export interface ExcelImportResultResponse {
   errorRows?: ExcelEmployeeRow[];
   failedRows?: ExcelEmployeeRow[];
   message: string;
+  // Import summary computed by the server from the whole file
+  ateRecords?: number;
+  noMealCells?: number;
+  newEmployees?: number;
+  firstMealDate?: string;
+  lastMealDate?: string;
+  totalAmount?: number;
+  months?: string[];
+  warnings?: string[];
+  recordsCreated?: number;
+  recordsUpdated?: number;
 }
 
