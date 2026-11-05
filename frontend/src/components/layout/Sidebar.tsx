@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-[#0F1729]" aria-hidden="true" />
             </div>
             <div className="min-w-0 leading-tight">
-              <span className="font-display font-extrabold text-white tracking-[0.08em] text-[15px] block">ISAHANE</span>
+              <span className="font-display font-extrabold text-white text-[15px] block truncate">Meal Management</span>
               <span className="text-[10.5px] text-slate-400 font-medium tracking-wide block truncate">Rwanda Plastic Industry</span>
             </div>
           </div>

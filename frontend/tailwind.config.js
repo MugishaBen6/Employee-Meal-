@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 
 /*
- * Design system — Employee Meal Management (RWANDA PLASTIC INDUSTRY · ISAHANE)
+ * Design system — Employee Meal Management (RWANDA PLASTIC INDUSTRY)
  *
  * Primary  "Royal"   : refined royal blue — trust, professionalism, efficiency.
  *                       Mapped onto `indigo` AND `blue` so every existing page

@@ -120,8 +120,8 @@ const Login: React.FC = () => {
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-[#1B2156]" aria-hidden="true" />
             </div>
             <div className="leading-tight">
-              <p className="font-display font-extrabold tracking-[0.1em] text-[15px] lg:text-base">ISAHANE</p>
-              <p className="text-[11px] lg:text-xs text-white/70 font-medium tracking-wide">RWANDA PLASTIC INDUSTRY</p>
+              <p className="font-display font-extrabold tracking-[0.06em] text-[15px] lg:text-base">RWANDA PLASTIC INDUSTRY</p>
+              <p className="text-[11px] lg:text-xs text-white/70 font-medium tracking-wide">Employee Meal Management</p>
             </div>
           </div>
 
