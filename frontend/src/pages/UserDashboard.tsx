@@ -5,6 +5,20 @@ import { employeeApi } from '../api/employeeApi';
 import { Employee, MealRecord, MealStatus, QuickMealCheckResponse, UserDashboardStats } from '../types';
 import { getKigaliToday } from '../utils/dateUtils';
 import { Card } from '../components/common/Card';
+import { useAuth } from '../context/AuthContext';
+import {
+  Hero,
+  HeroStat,
+  KpiCard,
+  Panel,
+  ParticipationRing,
+  LegendDot,
+  CHART,
+  fmtNumber,
+  fmtDayLabel,
+  greeting,
+  pct,
+} from '../components/dashboard/DashboardKit';
 import { Badge } from '../components/common/Badge';
 import { Skeleton } from '../components/common/Skeleton';
 import { Button } from '../components/common/Button';
@@ -24,6 +38,7 @@ import {
 } from 'lucide-react';
 
 const UserDashboard: React.FC = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState<UserDashboardStats | null>(null);
   const [records, setRecords] = useState<MealRecord[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(getKigaliToday());
@@ -309,93 +324,98 @@ const UserDashboard: React.FC = () => {
     .filter((r) => r.mealStatus === 'ATE')
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
-  const statCards = [
-    {
-      label: 'Total Records',
-      value: stats ? stats.totalRecords : '—',
-      icon: List,
-      color: 'text-indigo-600',
-      bg: 'bg-indigo-50',
-    },
-    {
-      label: 'ATE',
-      value: stats ? stats.ateCount : '—',
-      icon: CheckCircle2,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-50',
-    },
-    {
-      label: 'DID NOT EAT',
-      value: stats ? stats.didNotEatCount : '—',
-      icon: AlertCircle,
-      color: 'text-rose-600',
-      bg: 'bg-rose-50',
-    },
-    {
-      label: `Total Amount (${stats?.currency ?? 'RWF'})`,
-      value: stats
-        ? Number(stats.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-        : '—',
-      icon: DollarSign,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50',
-    },
-  ];
+
+  const firstName = user?.firstName || user?.fullName || user?.username || '';
+  const myRate = stats && stats.totalRecords > 0 ? pct(stats.ateCount, stats.totalRecords) : 0;
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6">
+    <div className="flex flex-col gap-5 sm:gap-6">
       <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5 text-indigo-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">My Dashboard</h1>
-            <p className="text-sm text-slate-500">Your personal meal recording summary</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => { fetchStats(); fetchRecords(selectedDate); }}
-            className="flex items-center gap-1.5"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={openAdd} className="flex items-center gap-1.5">
-            <Plus className="w-4 h-4" />
-            Add Meal Record
-          </Button>
-        </div>
-      </div>
+      <Hero
+        eyebrow="Employee · My meals"
+        title={`${greeting()}, ${firstName}`}
+        subtitle={
+          stats ? (
+            <>
+              You have recorded <b className="text-white">{fmtNumber(stats.totalRecords)}</b> meal{' '}
+              {stats.totalRecords === 1 ? 'record' : 'records'}. Add today's meals in a few taps.
+            </>
+          ) : (
+            'Your personal meal recording summary.'
+          )
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={openAdd}
+              className="inline-flex items-center gap-2 rounded-xl px-4 h-10 text-sm font-semibold bg-white text-slate-900 shadow-lg shadow-black/20 hover:bg-indigo-50 hover:-translate-y-px transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Meal Record
+            </button>
+            <button
+              type="button"
+              onClick={() => { fetchStats(); fetchRecords(selectedDate); }}
+              className="inline-flex items-center gap-2 rounded-xl px-4 h-10 text-sm font-semibold bg-white/10 text-white ring-1 ring-white/20 hover:bg-white/15 transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </>
+        }
+        stats={
+          <>
+            <HeroStat label="Meal rate" value={standardPrice !== undefined ? fmtNumber(standardPrice) : '—'} sub={stats?.currency ?? 'RWF'} />
+            <HeroStat label="Records" value={loadingRecords ? '—' : fmtNumber(records.length)} sub={fmtDayLabel(selectedDate)} />
+            <HeroStat label="ATE share" value={stats ? `${myRate}%` : '—'} sub="all records" />
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Card key={card.label} className="p-4">
-              {loadingStats ? (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-8 w-8 rounded-lg" />
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2" title={statsError ? 'Statistics could not be loaded' : undefined}>
-                  <div className={`w-9 h-9 rounded-xl ${card.bg} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${card.color}`} />
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900">{card.value}</p>
-                  <p className="text-xs text-slate-500 font-medium">{card.label}</p>
-                </div>
-              )}
-            </Card>
-          );
-        })}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5" title={statsError ? 'Statistics could not be loaded' : undefined}>
+        <Panel title="ATE vs DID NOT EAT" subtitle="All the records you created" icon={LayoutDashboard}>
+          {loadingStats ? (
+            <Skeleton className="mx-auto h-[176px] w-[176px] rounded-full" />
+          ) : (
+            <div className="flex flex-col items-center">
+              <ParticipationRing
+                size={176}
+                centerValue={stats ? `${myRate}%` : '—'}
+                centerLabel="ate"
+                segments={[
+                  { name: 'Ate', value: stats?.ateCount ?? 0, color: CHART.ate },
+                  { name: 'Did not eat', value: stats?.didNotEatCount ?? 0, color: CHART.dne },
+                ]}
+              />
+              <div className="mt-4 flex gap-5">
+                <LegendDot color={CHART.ate} label="Ate" value={stats ? fmtNumber(stats.ateCount) : '—'} />
+                <LegendDot color={CHART.dne} label="Did not eat" value={stats ? fmtNumber(stats.didNotEatCount) : '—'} />
+              </div>
+            </div>
+          )}
+        </Panel>
+
+        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+          {loadingStats ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[128px] rounded-2xl" />)
+          ) : (
+            <>
+              <KpiCard label="Total records" value={stats ? fmtNumber(stats.totalRecords) : '—'} icon={List} tone="indigo" hint="Meals you recorded" />
+              <KpiCard
+                label={`Total amount`}
+                value={stats ? fmtNumber(Number(stats.totalAmount)) : '—'}
+                unit={stats?.currency ?? 'RWF'}
+                icon={DollarSign}
+                tone="amber"
+                hint="Sum of your ATE records"
+              />
+              <KpiCard label="ATE" value={stats ? fmtNumber(stats.ateCount) : '—'} icon={CheckCircle2} tone="emerald" hint="Standard meal price each" />
+              <KpiCard label="DID NOT EAT" value={stats ? fmtNumber(stats.didNotEatCount) : '—'} icon={AlertCircle} tone="rose" hint="Recorded at 0" />
+            </>
+          )}
+        </div>
       </div>
 
       <Card className="p-5">
