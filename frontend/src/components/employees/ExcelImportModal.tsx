@@ -246,72 +246,9 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     }
   };
 
+  // Importing always uploads the whole file again; rows from the preview (a sample) are never sent.
   const handleConfirmImport = async () => {
-    if (selectedFile) {
-      await handleDirectImport();
-      return;
-    }
-
-    if (!previewData) return;
-
-    const rowsToImport = previewData.rows.filter((_, idx) =>
-      selectedRowIndices.has(idx)
-    );
-
-    if (rowsToImport.length === 0) {
-      setErrorMessage('No valid rows selected for import');
-      return;
-    }
-
-    setStep('importing');
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const rawRes: any = await employeeApi.confirmExcelImport({
-        mealDate,
-        rows: rowsToImport,
-      });
-
-      const successCount = rawRes.mealRecordsCreated ?? rawRes.importedCount ?? rawRes.successCount ?? rowsToImport.length;
-      const employeesProcessed = rawRes.employeesProcessed ?? (new Set(rowsToImport.map(r => r.employeeName))).size;
-      const ateCount = rawRes.ateCount ?? rowsToImport.filter(r => r.mealStatus?.toUpperCase() === 'ATE' || r.mealStatus?.toLowerCase() === 'ate').length;
-      const didNotEatCount = rawRes.didNotEatCount ?? (successCount - ateCount);
-
-      const result: ExcelImportResultResponse = {
-        totalProcessed: rowsToImport.length,
-        successCount,
-        importedCount: successCount,
-        employeesProcessed,
-        mealRecordsCreated: successCount,
-        ateCount,
-        didNotEatCount,
-        duplicateCount: rawRes.duplicateCount ?? 0,
-        invalidCount: rawRes.invalidCount ?? 0,
-        errorCount: rawRes.errorCount ?? 0,
-        importedEmployeeIds: rawRes.importedEmployeeIds || [],
-        errorRows: rawRes.errorRows || rawRes.failedRows || [],
-        message: rawRes.message || `Import Completed: ${employeesProcessed} employee(s) processed, ${successCount} meal record(s) created (${ateCount} ATE, ${didNotEatCount} DID NOT EAT).`,
-        recordsCreated: rawRes.recordsCreated,
-        recordsUpdated: rawRes.recordsUpdated,
-        totalAmount: rawRes.totalAmount,
-        months: rawRes.months || [],
-        warnings: rawRes.warnings || [],
-        newEmployees: rawRes.newEmployees,
-        firstMealDate: rawRes.firstMealDate,
-        lastMealDate: rawRes.lastMealDate,
-      };
-
-      setImportResult(result);
-      setStep('result');
-    } catch (err: any) {
-      setErrorMessage(
-        err.response?.data?.message || err.message || 'Import failed. Please check your data.'
-      );
-      setStep('preview');
-    } finally {
-      setLoading(false);
-    }
+    await handleDirectImport();
   };
 
   const handleDownloadErrorReport = async () => {
