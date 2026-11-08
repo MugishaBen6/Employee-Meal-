@@ -66,9 +66,18 @@ export const mealApi = {
     return filename;
   },
 
-  maintenanceDelete: async (expectedCount: number, range?: { startDate: string; endDate: string }) => {
-    const res = await axiosClient.delete<ApiResponse<MealDataSummary & { deletedRecords: number }>>('/meals/maintenance', {
-      params: { ...range, expectedCount, confirm: 'DELETE' },
+  maintenanceDelete: async (
+    expectedCount: number,
+    range?: { startDate: string; endDate: string },
+    employees?: { expectedEmployees: number }
+  ) => {
+    const res = await axiosClient.delete<ApiResponse<MealDataSummary & { deletedRecords: number; deletedEmployees?: number }>>('/meals/maintenance', {
+      params: {
+        ...range,
+        expectedCount,
+        confirm: 'DELETE',
+        ...(employees ? { includeEmployees: true, expectedEmployees: employees.expectedEmployees } : {}),
+      },
     });
     return res.data;
   },
@@ -81,4 +90,6 @@ export interface MealDataSummary {
   totalAmount: number;
   firstMealDate: string | null;
   lastMealDate: string | null;
+  /** All employees (any status). */
+  employees: number;
 }

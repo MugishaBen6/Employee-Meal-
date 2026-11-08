@@ -23,6 +23,7 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
   const [summary, setSummary] = useState<MealDataSummary | null>(null);
   const [backupFile, setBackupFile] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState('');
+  const [includeEmployees, setIncludeEmployees] = useState(false);
   const [busy, setBusy] = useState<'check' | 'backup' | 'delete' | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
     setSummary(null);
     setBackupFile(null);
     setConfirmText('');
+    setIncludeEmployees(false);
   };
 
   const check = async () => {
@@ -66,9 +68,17 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
     if (!summary) return;
     setBusy('delete');
     try {
-      const res = await mealApi.maintenanceDelete(summary.totalRecords, range);
+      const withEmployees = scope === 'all' && includeEmployees;
+      const res = await mealApi.maintenanceDelete(
+        summary.totalRecords,
+        range,
+        withEmployees ? { expectedEmployees: summary.employees } : undefined
+      );
       setLastResult(
-        `${res.data.deletedRecords.toLocaleString()} meal record(s) moved to Trash (${Number(res.data.totalAmount).toLocaleString()} RWF). Backup: ${backupFile}`
+        `${res.data.deletedRecords.toLocaleString()} meal record(s)` +
+          (res.data.deletedEmployees !== undefined ? ` and ${res.data.deletedEmployees.toLocaleString()} employee(s)` : '') +
+          ` moved to Trash (${Number(res.data.totalAmount).toLocaleString()} RWF).` +
+          (backupFile ? ` Backup: ${backupFile}` : '')
       );
       onToast('success', res.message);
       reset();
@@ -79,7 +89,11 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
     }
   };
 
-  const canDelete = !!summary && summary.totalRecords > 0 && !!backupFile && confirmText === 'DELETE' && busy === null;
+  const withEmployees = scope === 'all' && includeEmployees;
+  const hasSomething = !!summary && (summary.totalRecords > 0 || (withEmployees && summary.employees > 0));
+  // A backup is required whenever meal records will be removed.
+  const backupOk = !!summary && (summary.totalRecords === 0 || !!backupFile);
+  const canDelete = hasSomething && backupOk && confirmText === 'DELETE' && busy === null;
 
   return (
     <Card className="p-0 overflow-hidden ring-1 ring-rose-100">
@@ -91,7 +105,8 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
           <h2 className="text-base font-bold text-slate-900">Meal data maintenance</h2>
           <p className="text-xs text-slate-600 mt-0.5">
             Clear meal records before re-importing clean data. Deleted records go to Trash, where an ADMIN can restore
-            them. Employees, users and audit logs are not touched. Every step is recorded in the Activity Logs.
+            them. Employees are removed only if you tick the box below; users and audit logs are never touched.
+            Every step is recorded in the Activity Logs.
           </p>
         </div>
       </div>
@@ -165,6 +180,24 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
               ))}
             </div>
           )}
+
+          {summary && scope === 'all' && (
+            <label className="flex items-start gap-2.5 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 text-sm text-amber-950 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeEmployees}
+                onChange={(e) => setIncludeEmployees(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-rose-600"
+              />
+              <span>
+                <b>Also delete all {summary.employees.toLocaleString()} employees</b> (Total Staff becomes 0).
+                <span className="block text-xs text-amber-800">
+                  For a completely clean start before importing an updated Excel file. They go to Trash with their meal
+                  records and can be restored together.
+                </span>
+              </span>
+            </label>
+          )}
         </div>
 
         {/* Step 2: backup */}
@@ -197,13 +230,15 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
             <input
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              disabled={!backupFile}
+              disabled={!hasSomething || !backupOk}
               placeholder="Type DELETE"
               className="h-10 w-full sm:w-48 rounded-xl border border-slate-300 px-3 text-sm font-semibold tracking-wider disabled:bg-slate-50"
             />
             <Button type="button" variant="danger" onClick={remove} disabled={!canDelete} className="gap-1.5">
               {busy === 'delete' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Delete {summary ? summary.totalRecords.toLocaleString() : ''} record(s)
+              {withEmployees && summary
+                ? `Delete ${summary.totalRecords.toLocaleString()} record(s) + ${summary.employees.toLocaleString()} employee(s)`
+                : `Delete ${summary ? summary.totalRecords.toLocaleString() : ''} record(s)`}
             </Button>
           </div>
           <p className="flex items-start gap-1.5 text-[11px] text-rose-700">
