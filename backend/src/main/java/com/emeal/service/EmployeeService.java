@@ -147,12 +147,20 @@ public class EmployeeService {
 
         List<EmployeeAttendanceDTO> attendanceList = new ArrayList<>();
 
+        // Which rows are listed for the selected date:
+        //   default (null / "" / "RECORDED") -> only employees with a real meal record that day,
+        //       so deleted or missing records never appear as meals;
+        //   "ATE" / "DID_NOT_EAT"           -> real records with that status;
+        //   "ALL_STAFF"                      -> every employee; without a record the row is
+        //       NOT_RECORDED with no amount (never shown as a meal).
+        String filter = mealStatusFilter == null ? "" : mealStatusFilter.trim().toUpperCase();
+        boolean allStaff = filter.equals("ALL_STAFF");
+
         for (Employee emp : filteredEmployees) {
             MealRecord mr = recordMap.get(emp.getId());
-            // Status shown for the selected date:
-            // ATE record -> stored amount, DID_NOT_EAT record -> 0,
-            // no record -> shown as ATE at the standard meal price (display default only;
-            // nothing is stored, mealRecordId stays null).
+            if (mr == null && !allStaff) {
+                continue;
+            }
             String mStatus;
             BigDecimal amount;
             Long mealRecordId = null;
@@ -173,15 +181,12 @@ public class EmployeeService {
                     amount = BigDecimal.ZERO;
                 }
             } else {
-                mStatus = "ATE";
-                amount = standardMealPrice;
+                mStatus = "NOT_RECORDED";
+                amount = BigDecimal.ZERO;
             }
 
-            // Apply mealStatusFilter if specified
-            if (mealStatusFilter != null && !mealStatusFilter.isBlank() && !mealStatusFilter.equalsIgnoreCase("ALL")) {
-                if (!mStatus.equalsIgnoreCase(mealStatusFilter.trim())) {
-                    continue;
-                }
+            if ((filter.equals("ATE") || filter.equals("DID_NOT_EAT")) && !mStatus.equals(filter)) {
+                continue;
             }
 
             attendanceList.add(EmployeeAttendanceDTO.builder()

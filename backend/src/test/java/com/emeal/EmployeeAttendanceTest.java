@@ -113,7 +113,7 @@ public class EmployeeAttendanceTest {
         meal2.setAmount(BigDecimal.ZERO);
         mealRecordService.recordMeal(meal2);
 
-        // EMP003 has NO record for testDate: shown as ATE at the standard price (display default)
+        // EMP003 has NO record for testDate: not listed by default; "All staff" shows it as NOT_RECORDED
 
         // 4. Query Attendance endpoint service for testDate
         EmployeeAttendancePageResponse response = employeeService.getEmployeeAttendancePage(
@@ -131,6 +131,10 @@ public class EmployeeAttendanceTest {
 
         // Verify Individual Employee Rows
         List<EmployeeAttendanceDTO> list = response.getEmployees().getContent();
+        assertEquals(2, list.size(), "only employees with a real meal record are listed by default");
+        assertTrue(list.stream().noneMatch(r -> r.getFullName().equals("Alice Uwase")));
+        list = employeeService.getEmployeeAttendancePage(testDate, null, null, "ALL_STAFF", null, 0, 10)
+                .getEmployees().getContent();
         assertEquals(3, list.size());
 
         EmployeeAttendanceDTO row1 = list.stream().filter(e -> e.getEmployeeCode().equals("EMP001")).findFirst().orElseThrow();
@@ -147,9 +151,9 @@ public class EmployeeAttendanceTest {
 
         EmployeeAttendanceDTO row3 = list.stream().filter(e -> e.getEmployeeCode().equals("EMP003")).findFirst().orElseThrow();
         assertEquals("Alice Uwase", row3.getFullName());
-        assertEquals("ATE", row3.getMealStatus());
-        assertEquals(0, new BigDecimal("600.00").compareTo(row3.getAmount()));
-        assertNull(row3.getMealRecordId(), "display default only, nothing stored");
+        assertEquals("NOT_RECORDED", row3.getMealStatus(), "no record is never shown as a meal");
+        assertEquals(0, BigDecimal.ZERO.compareTo(row3.getAmount()));
+        assertNull(row3.getMealRecordId());
     }
 
     @Test
@@ -291,16 +295,18 @@ public class EmployeeAttendanceTest {
         assertEquals("DID_NOT_EAT", row31.getMealStatus());
         assertEquals(0, BigDecimal.ZERO.compareTo(row31.getAmount()));
 
-        // TEST 4: When selected date has NO record (2026-09-01) -> shown as ATE, 600 RWF (no record stored)
+        // TEST 4: A date with NO record (2026-09-01): not listed by default (no phantom meal);
+        // "All staff" lists Abel as NOT_RECORDED with no amount.
+        assertTrue(employeeService.getEmployeeAttendancePage(dateNoRecord, null, null, null, null, 0, 10)
+                .getEmployees().getContent().stream().noneMatch(e -> e.getId().equals(abel.getId())));
         EmployeeAttendancePageResponse respNoRecord = employeeService.getEmployeeAttendancePage(
-                dateNoRecord, null, null, null, null, 0, 10);
+                dateNoRecord, null, null, "ALL_STAFF", null, 0, 10);
         EmployeeAttendanceDTO rowNoRecord = respNoRecord.getEmployees().getContent().stream()
                 .filter(e -> e.getId().equals(abel.getId()))
                 .findFirst().orElseThrow();
         assertEquals("Abel", rowNoRecord.getFullName());
-        assertEquals("Worker", rowNoRecord.getPosition());
-        assertEquals("ATE", rowNoRecord.getMealStatus());
-        assertEquals(0, new BigDecimal("600.00").compareTo(rowNoRecord.getAmount()));
+        assertEquals("NOT_RECORDED", rowNoRecord.getMealStatus());
+        assertEquals(0, BigDecimal.ZERO.compareTo(rowNoRecord.getAmount()));
         assertNull(rowNoRecord.getMealRecordId());
     }
 }

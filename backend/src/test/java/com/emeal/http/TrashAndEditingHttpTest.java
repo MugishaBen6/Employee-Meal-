@@ -66,6 +66,12 @@ class TrashAndEditingHttpTest extends HttpTestSupport {
         assertReport(600, 1);
         JsonNode list = json(get("/employees/attendance?date=2026-10-05&size=50", admin)).path("data").path("employees").path("content");
         assertEquals(1, list.size());
+        // After all meal records of a day are deleted, that day's table is empty.
+        long otherMeal = jdbcTemplate.queryForObject("SELECT id FROM meal_records WHERE meal_date = '2026-10-05'", Long.class);
+        assertEquals(200, send("DELETE", "/meals/" + otherMeal, admin, null).statusCode());
+        assertEquals(0, json(get("/employees/attendance?date=2026-10-05&size=50", admin)).path("data").path("employees").path("totalElements").asInt());
+        long otherTrash = trash("MEAL_RECORD").get(0).path("id").asLong();
+        assertEquals(1, json(send("POST", "/trash/restore", admin, "[" + otherTrash + "]")).path("data").path("restored").asInt());
 
         // Visible in Trash with who/when and its meals.
         JsonNode items = trash("EMPLOYEE");
@@ -107,8 +113,14 @@ class TrashAndEditingHttpTest extends HttpTestSupport {
         employeeRepository.save(keep);
 
         // The page shows 10 at a time; "select all" asks the server for every matching id.
-        JsonNode ids = json(get("/employees/attendance/ids?date=2026-10-05&department=Production", hr)).path("data");
+        // Nobody has a meal that day: the default view lists no one; "All staff" lists everyone.
+        assertEquals(0, json(get("/employees/attendance/ids?date=2026-10-05&department=Production", hr)).path("data").size());
+        assertEquals(0, json(get("/employees/attendance?date=2026-10-05&size=10", hr)).path("data").path("employees").path("totalElements").asInt());
+        JsonNode ids = json(get("/employees/attendance/ids?date=2026-10-05&department=Production&mealStatus=ALL_STAFF", hr)).path("data");
         assertEquals(25, ids.size());
+        JsonNode staffRow = json(get("/employees/attendance?date=2026-10-05&mealStatus=ALL_STAFF&size=1", hr)).path("data").path("employees").path("content").get(0);
+        assertEquals("NOT_RECORDED", staffRow.path("mealStatus").asText());
+        assertEquals(0, BigDecimal.ZERO.compareTo(staffRow.path("amount").decimalValue()));
         assertEquals(403, get("/employees/attendance/ids", accountant).statusCode());
 
         HttpResponse<String> del = send("POST", "/employees/bulk-delete", admin, ids.toString());
