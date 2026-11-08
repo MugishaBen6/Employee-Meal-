@@ -84,6 +84,7 @@ public class MealDataMaintenanceService {
         out.put("lastMealDate", row.get("last_date") == null ? null : row.get("last_date").toString());
         out.put("startDate", scope.start());
         out.put("endDate", scope.end());
+        out.put("employees", jdbcTemplate.queryForObject("SELECT COUNT(*) FROM employees", Long.class));
         return out;
     }
 
@@ -113,6 +114,17 @@ public class MealDataMaintenanceService {
 
     @Transactional
     public Map<String, Object> delete(Scope scope, long expectedCount, String confirm) {
+        return delete(scope, expectedCount, confirm, false, null);
+    }
+
+    /**
+     * @param includeEmployees also move every employee to Trash (all meal dates only); each employee
+     *                         carries its meal records, so Trash can restore both together
+     * @param expectedEmployees employee count the caller saw; refused if it changed
+     */
+    @Transactional
+    public Map<String, Object> delete(Scope scope, long expectedCount, String confirm,
+                                      boolean includeEmployees, Long expectedEmployees) {
         if (!CONFIRM_WORD.equals(confirm)) {
             throw new BadRequestException("Type " + CONFIRM_WORD + " to confirm deleting meal records.");
         }
@@ -122,6 +134,33 @@ public class MealDataMaintenanceService {
             throw new DuplicateResourceException("The number of meal records changed (now " + count + ", you confirmed "
                     + expectedCount + "). Refresh the summary and download a new backup before deleting.");
         }
+        if (includeEmployees) {
+            if (!scope.all()) {
+                throw new BadRequestException("Employees can be removed only together with all meal records (not a date range).");
+            }
+            long employees = (Long) before.get("employees");
+            if (expectedEmployees == null || employees != expectedEmployees) {
+                throw new DuplicateResourceException("The number of employees changed (now " + employees + ", you confirmed "
+                        + expectedEmployees + "). Check records again before deleting.");
+            }
+            // Every meal record belongs to an employee: trashing all employees moves all meals with them.
+            List<Long> empIds = jdbcTemplate.queryForList("SELECT id FROM employees", Long.class);
+            int movedEmployees = trashService.trashEmployees(empIds, "Meal data maintenance: all meal records and all employees");
+            Integer left = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM meal_records", Integer.class);
+            if (movedEmployees != employees || (left != null && left != 0)) {
+                throw new IllegalStateException("Clean-up affected an unexpected number of rows; nothing was deleted.");
+            }
+            auditLogService.logActionSync("BULK_DELETE_MEAL_RECORDS", "MEAL_RECORD", "BULK",
+                    "Moved to Trash all " + movedEmployees + " employees with all " + count + " meal records ("
+                            + before.get("ateCount") + " ATE, " + before.get("didNotEatCount") + " DID_NOT_EAT, total amount "
+                            + ((BigDecimal) before.get("totalAmount")).toPlainString() + " RWF). Requested by "
+                            + SecurityUtils.getCurrentUsername() + " at " + BusinessTime.nowForDisplay().withNano(0) + ".");
+            Map<String, Object> out = new LinkedHashMap<>(before);
+            out.put("deletedRecords", (int) count);
+            out.put("deletedEmployees", movedEmployees);
+            return out;
+        }
+
         // Moved to the ADMIN Trash (recoverable), not destroyed.
         List<Long> ids = jdbcTemplate.queryForList("SELECT m.id FROM meal_records m" + scope.where(), Long.class, scope.args());
         int deleted = trashService.trashMealRecords(ids, "Meal data maintenance, " + scope.label());

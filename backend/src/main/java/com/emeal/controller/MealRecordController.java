@@ -64,10 +64,14 @@ public class MealRecordController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam long expectedCount,
-            @RequestParam String confirm) {
+            @RequestParam String confirm,
+            @RequestParam(defaultValue = "false") boolean includeEmployees,
+            @RequestParam(required = false) Long expectedEmployees) {
         java.util.Map<String, Object> result = maintenanceService.delete(
-                maintenanceService.scope(startDate, endDate), expectedCount, confirm);
-        return ResponseEntity.ok(ApiResponse.success("Moved " + result.get("deletedRecords") + " meal record(s) to Trash", result));
+                maintenanceService.scope(startDate, endDate), expectedCount, confirm, includeEmployees, expectedEmployees);
+        return ResponseEntity.ok(ApiResponse.success("Moved " + result.get("deletedRecords") + " meal record(s)"
+                + (result.get("deletedEmployees") != null ? " and " + result.get("deletedEmployees") + " employee(s)" : "")
+                + " to Trash", result));
     }
 
     @PostMapping

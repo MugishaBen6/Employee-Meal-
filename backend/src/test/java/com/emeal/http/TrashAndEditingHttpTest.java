@@ -209,6 +209,36 @@ class TrashAndEditingHttpTest extends HttpTestSupport {
         assertTrue(send("DELETE", "/audit-logs", admin, null).statusCode() >= 400);
     }
 
+    @Test
+    void cleanStart_canRemoveAllMealRecordsAndAllEmployees_andRestoreThem() throws Exception {
+        Employee a = employee("C001", "Clean One");
+        Employee b = employee("C002", "Clean Two");
+        meal(hr, a, "2026-10-05", "ATE", "600");
+        meal(hr, b, "2026-10-06", "DID_NOT_EAT", null);
+        JsonNode sum = json(get("/meals/maintenance/summary", admin)).path("data");
+        assertEquals(2, sum.path("totalRecords").asInt());
+        assertEquals(2, sum.path("employees").asInt());
+
+        // Stale employee count, or a date range: refused and nothing changes.
+        assertEquals(400, send("DELETE", "/meals/maintenance?expectedCount=2&confirm=DELETE&includeEmployees=true&expectedEmployees=3", admin, null).statusCode());
+        assertEquals(400, send("DELETE", "/meals/maintenance?startDate=2026-10-01&endDate=2026-10-31&expectedCount=2&confirm=DELETE&includeEmployees=true&expectedEmployees=2", admin, null).statusCode());
+        assertEquals(2, employeeRepository.count());
+        assertEquals(2, count("SELECT COUNT(*) FROM meal_records"));
+
+        HttpResponse<String> res = send("DELETE", "/meals/maintenance?expectedCount=2&confirm=DELETE&includeEmployees=true&expectedEmployees=2", admin, null);
+        assertEquals(200, res.statusCode(), res.body());
+        assertEquals(2, json(res).path("data").path("deletedEmployees").asInt());
+        assertEquals(0, employeeRepository.count());
+        assertEquals(0, count("SELECT COUNT(*) FROM meal_records"));
+        assertEquals(0, json(get("/dashboard/statistics", admin)).path("data").path("totalEmployees").asInt());
+        assertReport(0, 0);
+
+        HttpResponse<String> back = send("POST", "/trash/restore", admin, json(get("/trash/ids", admin)).path("data").toString());
+        assertEquals(2, json(back).path("data").path("restored").asInt());
+        assertEquals(2, employeeRepository.count());
+        assertReport(600, 1);
+    }
+
     // ---------------------------------------------------------------- Historical editing
 
     @Test
