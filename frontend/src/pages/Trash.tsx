@@ -14,7 +14,7 @@ import {
   Inbox,
 } from 'lucide-react';
 import { trashApi, TrashItem, TrashItemType, TrashSummary, RestoreResult } from '../api/trashApi';
-import { PageHero, HeroStat, Toolbar, fmtNumber } from '../components/dashboard/DashboardKit';
+import { PageHero, HeroStat, Toolbar, fmtNumber, heroBtn } from '../components/dashboard/DashboardKit';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -64,6 +64,8 @@ export const TrashPage: React.FC = () => {
   const [purgeTarget, setPurgeTarget] = useState<number[] | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
+  const [emptyingAll, setEmptyingAll] = useState(false);
+  const [loadingAllIds, setLoadingAllIds] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const toast = (type: ToastMessage['type'], message: string) =>
@@ -122,6 +124,26 @@ export const TrashPage: React.FC = () => {
     }
   };
 
+  const trashCount = summary ? summary.employees + summary.mealRecords : 0;
+
+  /** Empty Trash: every item, whatever tab or search is active. */
+  const openEmptyTrash = async () => {
+    setLoadingAllIds(true);
+    try {
+      const all = await trashApi.ids({});
+      if (all.length === 0) {
+        toast('info', 'Trash is already empty.');
+        return;
+      }
+      setEmptyingAll(true);
+      setPurgeTarget(all);
+    } catch {
+      toast('error', 'Could not read the Trash contents.');
+    } finally {
+      setLoadingAllIds(false);
+    }
+  };
+
   const restore = async (ids: number[]) => {
     setBusy('restore');
     try {
@@ -147,6 +169,7 @@ export const TrashPage: React.FC = () => {
       const res = await trashApi.purge(purgeTarget);
       toast('success', res.message);
       setPurgeTarget(null);
+      setEmptyingAll(false);
       setConfirmText('');
       setSelected(new Set());
       load();
@@ -209,6 +232,17 @@ export const TrashPage: React.FC = () => {
         eyebrow="Administration · Recovery"
         title="Trash"
         subtitle="Deleted employees and meal records are kept here. Restore puts them back exactly as they were; nothing in Trash counts in lists, reports or totals."
+        actions={
+          <button
+            type="button"
+            onClick={openEmptyTrash}
+            disabled={trashCount === 0 || busy !== null || loadingAllIds}
+            className={`${heroBtn.ghost} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {loadingAllIds ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Empty Trash
+          </button>
+        }
         stats={
           <>
             <HeroStat label="Employees" value={summary ? fmtNumber(summary.employees) : '—'} sub={summary ? `${fmtNumber(summary.mealsInsideEmployees)} meals inside` : ''} />
@@ -401,9 +435,10 @@ export const TrashPage: React.FC = () => {
         onClose={() => {
           if (busy) return;
           setPurgeTarget(null);
+          setEmptyingAll(false);
           setConfirmText('');
         }}
-        title="Delete permanently?"
+        title={emptyingAll ? 'Empty Trash?' : 'Delete permanently?'}
         maxWidth="md"
       >
         <div className="space-y-4">
@@ -411,7 +446,9 @@ export const TrashPage: React.FC = () => {
             <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
             <div>
               <p className="font-bold">
-                {purgeTarget?.length.toLocaleString()} item{purgeTarget && purgeTarget.length > 1 ? 's' : ''} will be destroyed forever.
+                {emptyingAll && summary
+                  ? `Everything in Trash will be destroyed forever: ${summary.employees.toLocaleString()} employee(s) with ${summary.mealsInsideEmployees.toLocaleString()} meal record(s) inside, and ${summary.mealRecords.toLocaleString()} meal record(s).`
+                  : `${purgeTarget?.length.toLocaleString()} item${purgeTarget && purgeTarget.length > 1 ? 's' : ''} will be destroyed forever.`}
               </p>
               <p className="mt-1 text-xs text-rose-700">
                 Unlike moving to Trash, this cannot be undone. Employees are destroyed together with the meal records inside them.
@@ -429,11 +466,11 @@ export const TrashPage: React.FC = () => {
             />
           </label>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-            <Button variant="outline" onClick={() => { setPurgeTarget(null); setConfirmText(''); }} disabled={busy !== null}>
+            <Button variant="outline" onClick={() => { setPurgeTarget(null); setEmptyingAll(false); setConfirmText(''); }} disabled={busy !== null}>
               Cancel
             </Button>
             <Button variant="danger" onClick={purge} disabled={confirmText !== 'DELETE' || busy !== null} isLoading={busy === 'purge'} className="gap-1.5">
-              <Trash2 className="h-4 w-4" /> Delete permanently
+              <Trash2 className="h-4 w-4" /> {emptyingAll ? 'Empty Trash' : 'Delete permanently'}
             </Button>
           </div>
         </div>
