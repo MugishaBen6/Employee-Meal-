@@ -639,11 +639,11 @@ public class ExcelImportService {
                 int space = fullName.indexOf(' ');
                 String firstName = space > 0 ? fullName.substring(0, space).trim() : fullName;
                 String lastName = space > 0 ? fullName.substring(space + 1).trim() : "";
-                inserts.add(new Object[]{code, firstName, lastName, "General", "Worker", "", null});
+                inserts.add(new Object[]{code, firstName, lastName, "General", "Worker", "", null, recordedBy});
             }
             jdbcTemplate.batchUpdate(
-                    "INSERT INTO employees (employee_code, first_name, last_name, department, position, phone, email, status, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())", inserts);
+                    "INSERT INTO employees (employee_code, first_name, last_name, department, position, phone, email, created_by, status, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW(), NOW())", inserts);
             Map<String, Long> idByCode = new HashMap<>();
             jdbcTemplate.query("SELECT id, employee_code FROM employees WHERE employee_code IN ("
                             + String.join(",", Collections.nCopies(codeByKey.size(), "?")) + ")",

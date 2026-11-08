@@ -76,6 +76,14 @@ public final class SecurityUtils {
         return role != null && role.equals(getCurrentRole());
     }
 
+    public static boolean hasAnyRole(String... roles) {
+        String current = getCurrentRole();
+        for (String r : roles) {
+            if (r != null && r.equals(current)) return true;
+        }
+        return false;
+    }
+
     public static boolean isUserRole() {
         return hasRole("USER");
     }

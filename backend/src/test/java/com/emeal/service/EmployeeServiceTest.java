@@ -33,8 +33,16 @@ class EmployeeServiceTest {
 
     private CreateEmployeeRequest request;
 
+    @org.junit.jupiter.api.AfterEach
+    void clearLogin() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
     @BeforeEach
     void setUp() {
+        // Services run behind authenticated endpoints; createEmployee records the creator.
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.TestingAuthenticationToken("admin1", null, "ROLE_ADMIN"));
         request = new CreateEmployeeRequest();
         request.setEmployeeCode("EMP010");
         request.setFirstName("Eric");

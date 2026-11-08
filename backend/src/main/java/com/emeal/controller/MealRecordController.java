@@ -67,7 +67,7 @@ public class MealRecordController {
             @RequestParam String confirm) {
         java.util.Map<String, Object> result = maintenanceService.delete(
                 maintenanceService.scope(startDate, endDate), expectedCount, confirm);
-        return ResponseEntity.ok(ApiResponse.success("Deleted " + result.get("deletedRecords") + " meal record(s)", result));
+        return ResponseEntity.ok(ApiResponse.success("Moved " + result.get("deletedRecords") + " meal record(s) to Trash", result));
     }
 
     @PostMapping
@@ -130,6 +130,6 @@ public class MealRecordController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse<Void>> deleteMealRecord(@PathVariable Long id) {
         mealRecordService.deleteMealRecord(id);
-        return ResponseEntity.ok(ApiResponse.success("Meal record deleted successfully"));
+        return ResponseEntity.ok(ApiResponse.success("Meal record moved to Trash"));
     }
 }

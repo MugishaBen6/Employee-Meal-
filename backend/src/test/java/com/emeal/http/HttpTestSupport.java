@@ -56,7 +56,10 @@ public abstract class HttpTestSupport {
         cleanTables();
     }
 
+    @Autowired protected org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     protected void cleanTables() {
+        jdbcTemplate.update("DELETE FROM trash_items");
         mealRecordRepository.deleteAll();
         employeeRepository.deleteAll();
         passwordResetTokenRepository.deleteAll();

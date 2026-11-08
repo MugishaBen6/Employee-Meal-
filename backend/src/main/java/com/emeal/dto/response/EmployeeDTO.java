@@ -78,8 +78,14 @@ public class EmployeeDTO {
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
+    /** Username that created the employee (NULL for older employees). */
+    private String createdBy;
+
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+
     public static EmployeeDTO fromEntity(Employee employee) {
-        return EmployeeDTO.builder()
+        EmployeeDTO dto = EmployeeDTO.builder()
                 .id(employee.getId())
                 .employeeCode(employee.getEmployeeCode())
                 .firstName(employee.getFirstName())
@@ -93,6 +99,8 @@ public class EmployeeDTO {
                 .createdAt(employee.getCreatedAt())
                 .updatedAt(employee.getUpdatedAt())
                 .build();
+        dto.setCreatedBy(employee.getCreatedBy());
+        return dto;
     }
 
     public static class EmployeeDTOBuilder {

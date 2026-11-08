@@ -39,6 +39,13 @@ public class Employee {
     @Column(nullable = false, length = 20)
     private EmployeeStatus status = EmployeeStatus.ACTIVE;
 
+    /** Username that created this employee (NULL for employees created before V10). */
+    @Column(name = "created_by", length = 50, updatable = false)
+    private String createdBy;
+
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

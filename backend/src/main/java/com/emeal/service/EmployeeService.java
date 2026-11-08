@@ -36,12 +36,15 @@ public class EmployeeService {
     private final MealRecordService mealRecordService;
     private final SettingsService settingsService;
     private final AuditLogService auditLogService;
+    private final TrashService trashService;
 
     public EmployeeService(EmployeeRepository employeeRepository,
                            MealRecordRepository mealRecordRepository,
                            MealRecordService mealRecordService,
                            SettingsService settingsService,
-                           AuditLogService auditLogService) {
+                           AuditLogService auditLogService,
+                           TrashService trashService) {
+        this.trashService = trashService;
         this.employeeRepository = employeeRepository;
         this.mealRecordRepository = mealRecordRepository;
         this.mealRecordService = mealRecordService;
@@ -295,6 +298,7 @@ public class EmployeeService {
                 .status(EmployeeStatus.ACTIVE)
                 .build();
 
+        employee.setCreatedBy(SecurityUtils.getCurrentUsername());
         Employee saved = employeeRepository.save(employee);
 
         // If initial meal attendance is provided
@@ -421,26 +425,21 @@ public class EmployeeService {
                 "Deactivated employee " + employee.getEmployeeCode() + " (" + employee.getFullName() + ")");
     }
 
+    /** Moves the selected employees (and their meal records) to the ADMIN Trash; nothing is destroyed. */
     @Transactional
-    public void bulkDeleteEmployees(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) return;
-        int count = 0;
-        for (Long id : ids) {
-            if (id == null) continue;
-            Optional<Employee> empOpt = employeeRepository.findById(id);
-            if (empOpt.isPresent()) {
-                Employee emp = empOpt.get();
-                List<MealRecord> records = mealRecordRepository.findByEmployeeIdOrderByMealDateDesc(id);
-                if (!records.isEmpty()) {
-                    mealRecordRepository.deleteAll(records);
-                }
-                employeeRepository.delete(emp);
-                count++;
-            }
+    public int bulkDeleteEmployees(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BadRequestException("Select at least one employee.");
         }
+        return trashService.trashEmployees(ids, null);
+    }
 
-        auditLogService.logAction("BULK_DELETE_EMPLOYEES", "EMPLOYEE", "BULK",
-                "Deleted " + count + " employees and their associated meal records");
+    /** Ids of every employee matching the Employees-page filters, across all pages. */
+    @Transactional(readOnly = true)
+    public List<Long> getEmployeeAttendanceIds(LocalDate date, String query, String department,
+                                               String mealStatusFilter, EmployeeStatus status) {
+        return getEmployeeAttendancePage(date, query, department, mealStatusFilter, status, 0, Integer.MAX_VALUE)
+                .getEmployees().getContent().stream().map(EmployeeAttendanceDTO::getId).toList();
     }
 
     private String generateNextEmployeeCode() {

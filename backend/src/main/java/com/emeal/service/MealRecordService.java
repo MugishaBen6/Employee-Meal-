@@ -38,8 +38,10 @@ public class MealRecordService {
     private final EmployeeRepository employeeRepository;
     private final SettingsService settingsService;
     private final AuditLogService auditLogService;
+    private final TrashService trashService;
 
-    public MealRecordService(MealRecordRepository mealRecordRepository, EmployeeRepository employeeRepository, SettingsService settingsService, AuditLogService auditLogService) {
+    public MealRecordService(MealRecordRepository mealRecordRepository, EmployeeRepository employeeRepository, SettingsService settingsService, AuditLogService auditLogService, TrashService trashService) {
+        this.trashService = trashService;
         this.mealRecordRepository = mealRecordRepository;
         this.employeeRepository = employeeRepository;
         this.settingsService = settingsService;
@@ -203,23 +205,117 @@ public class MealRecordService {
 
         MealStatus prevStatus = record.getMealStatus();
         BigDecimal prevAmount = record.getAmount();
+        LocalDate prevDate = record.getMealDate();
+        Employee prevEmployee = record.getEmployee();
+        String prevEmployeeLabel = prevEmployee.getEmployeeCode() + " (" + prevEmployee.getFullName() + ")";
         String prevRecordedBy = record.getRecordedBy();
 
+        // 1. Assign the record to a different employee (wrong person selected).
+        Employee employee = prevEmployee;
+        if (request.getEmployeeId() != null && !request.getEmployeeId().equals(prevEmployee.getId())) {
+            employee = employeeRepository.findById(request.getEmployeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.getEmployeeId()));
+            if (employee.getStatus() == EmployeeStatus.INACTIVE) {
+                throw new BadRequestException("Employee is deactivated and cannot be selected for meal records");
+            }
+        }
+
+        // 2. Meal date: kept unless intentionally changed.
+        LocalDate newDate = request.getMealDate() != null ? request.getMealDate() : prevDate;
+        if (SecurityUtils.isUserRole() && !newDate.equals(prevDate) && newDate.isAfter(BusinessTime.today())) {
+            throw new BadRequestException("Meal date cannot be in the future.");
+        }
+        if ((!newDate.equals(prevDate) || employee != prevEmployee)
+                && mealRecordRepository.existsByEmployeeIdAndMealDate(employee.getId(), newDate)) {
+            throw new DuplicateResourceException("A meal record already exists for " + employee.getFullName() + " on " + newDate
+                    + ". Edit that record instead.");
+        }
+
+        // 3. Correct the employee's name / position (the employee itself, so all their records show it).
+        String nameChange = correctEmployee(employee, request.getEmployeeName(), request.getPosition());
+
+        // 4. Status and amount (existing pricing rules: DID_NOT_EAT = 0; USER cannot set amounts).
         MealStatus newStatus = request.getMealStatus();
         BigDecimal newAmount = resolveAmount(newStatus, request.getAmount(), record);
 
+        record.setEmployee(employee);
+        record.setMealDate(newDate);
         record.setMealStatus(newStatus);
         record.setAmount(newAmount);
         record.setRecordedBy(prevRecordedBy);
         MealRecord updated = mealRecordRepository.save(record);
 
+        StringBuilder changes = new StringBuilder();
+        if (prevStatus != newStatus) changes.append(" status ").append(prevStatus).append(" -> ").append(newStatus).append(';');
+        if (prevAmount == null || prevAmount.compareTo(newAmount) != 0) {
+            changes.append(" amount ").append(prevAmount).append(" -> ").append(newAmount).append(" RWF;");
+        }
+        if (!newDate.equals(prevDate)) changes.append(" meal date ").append(prevDate).append(" -> ").append(newDate).append(';');
+        if (employee != prevEmployee) {
+            changes.append(" employee ").append(prevEmployeeLabel).append(" -> ").append(employee.getEmployeeCode())
+                    .append(" (").append(employee.getFullName()).append(");");
+        }
+        if (nameChange != null) changes.append(' ').append(nameChange).append(';');
+
         auditLogService.logActionSync("UPDATE_MEAL_RECORD", "MEAL_RECORD", updated.getId().toString(),
-                "Updated meal record ID " + id + " for employee " + record.getEmployee().getEmployeeCode() +
-                " (" + record.getEmployee().getFullName() + ") on " + record.getMealDate() +
-                " | PREVIOUS: status=" + prevStatus + ", amount=" + prevAmount + " RWF, recordedBy=" + prevRecordedBy +
-                " | NEW: status=" + newStatus + ", amount=" + newAmount + " RWF, recordedBy=" + updated.getRecordedBy());
+                "Updated meal record ID " + id + " for employee " + employee.getEmployeeCode() +
+                " (" + employee.getFullName() + ") on " + newDate +
+                " | PREVIOUS: status=" + prevStatus + ", amount=" + prevAmount + " RWF, date=" + prevDate + ", employee=" + prevEmployeeLabel +
+                " | NEW: status=" + newStatus + ", amount=" + newAmount + " RWF, date=" + newDate +
+                " | CHANGES:" + (changes.length() == 0 ? " none" : changes.toString()) +
+                " | recordedBy=" + updated.getRecordedBy());
 
         return MealRecordDTO.fromEntity(updated);
+    }
+
+    /**
+     * Name/position correction from a meal record. ADMIN and HR may correct any employee; a USER may
+     * correct only employees they created themselves. Returns an audit fragment, or null if unchanged.
+     */
+    private String correctEmployee(Employee employee, String requestedName, String requestedPosition) {
+        String oldName = employee.getFullName();
+        String oldPosition = employee.getPosition();
+        String name = requestedName == null ? null : requestedName.trim().replaceAll("\\s+", " ");
+        String position = requestedPosition == null ? null : requestedPosition.trim();
+        boolean nameChanged = name != null && !name.equals(oldName);
+        boolean positionChanged = position != null && !position.equals(oldPosition);
+        if (!nameChanged && !positionChanged) {
+            return null;
+        }
+
+        boolean allowed = SecurityUtils.hasAnyRole("ADMIN", "HR")
+                || (SecurityUtils.isUserRole() && SecurityUtils.getCurrentUsername().equals(employee.getCreatedBy()));
+        if (!allowed) {
+            throw new AccessDeniedException(SecurityUtils.isUserRole()
+                    ? "You can only correct the name or position of employees you added yourself."
+                    : "Only ADMIN or HR can change an employee's name or position.");
+        }
+
+        StringBuilder audit = new StringBuilder();
+        if (nameChanged) {
+            if (name.isEmpty()) throw new BadRequestException("Employee name is required.");
+            if (name.length() > 100) throw new BadRequestException("Employee name is too long.");
+            int space = name.indexOf(' ');
+            String first = space > 0 ? name.substring(0, space).trim() : name;
+            String last = space > 0 ? name.substring(space + 1).trim() : "";
+            boolean sameIgnoringCase = name.equalsIgnoreCase(oldName);
+            if (!sameIgnoringCase && employeeRepository.existsByFirstNameIgnoreCaseAndLastNameIgnoreCaseAndStatus(first, last, EmployeeStatus.ACTIVE)) {
+                throw new DuplicateResourceException("Another active employee is already named " + name + ".");
+            }
+            employee.setFirstName(first);
+            employee.setLastName(last);
+            audit.append("employee name '").append(oldName).append("' -> '").append(name).append("'");
+        }
+        if (positionChanged) {
+            if (position.isEmpty()) throw new BadRequestException("Position is required.");
+            employee.setPosition(position);
+            if (audit.length() > 0) audit.append(", ");
+            audit.append("position '").append(oldPosition).append("' -> '").append(position).append("'");
+        }
+        employeeRepository.save(employee);
+        auditLogService.logActionSync("UPDATE_EMPLOYEE", "EMPLOYEE", employee.getId().toString(),
+                "Corrected employee " + employee.getEmployeeCode() + " from a meal record: " + audit);
+        return audit.toString();
     }
 
     @Transactional
@@ -227,12 +323,9 @@ public class MealRecordService {
         if (SecurityUtils.isUserRole()) {
             throw new AccessDeniedException("USER accounts cannot delete meal records.");
         }
-        MealRecord record = findRecord(id);
-
-        mealRecordRepository.delete(record);
-
-        auditLogService.logActionSync("DELETE_MEAL_RECORD", "MEAL_RECORD", id.toString(),
-                "Deleted meal record ID " + id + " for employee " + record.getEmployee().getEmployeeCode());
+        findRecord(id);
+        // Moved to the ADMIN Trash (recoverable), never destroyed here. Trash writes the audit entry.
+        trashService.trashMealRecords(java.util.List.of(id), null);
     }
 
     private MealRecord findRecord(Long id) {

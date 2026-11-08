@@ -29,8 +29,10 @@ public class MealDataMaintenanceService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AuditLogService auditLogService;
+    private final TrashService trashService;
 
-    public MealDataMaintenanceService(JdbcTemplate jdbcTemplate, AuditLogService auditLogService) {
+    public MealDataMaintenanceService(JdbcTemplate jdbcTemplate, AuditLogService auditLogService, TrashService trashService) {
+        this.trashService = trashService;
         this.jdbcTemplate = jdbcTemplate;
         this.auditLogService = auditLogService;
     }
@@ -120,13 +122,14 @@ public class MealDataMaintenanceService {
             throw new DuplicateResourceException("The number of meal records changed (now " + count + ", you confirmed "
                     + expectedCount + "). Refresh the summary and download a new backup before deleting.");
         }
-        List<Object> args = new ArrayList<>(List.of(scope.args()));
-        int deleted = jdbcTemplate.update("DELETE FROM meal_records m" + scope.where(), args.toArray());
+        // Moved to the ADMIN Trash (recoverable), not destroyed.
+        List<Long> ids = jdbcTemplate.queryForList("SELECT m.id FROM meal_records m" + scope.where(), Long.class, scope.args());
+        int deleted = trashService.trashMealRecords(ids, "Meal data maintenance, " + scope.label());
         if (deleted != count) {
             throw new IllegalStateException("Delete affected an unexpected number of rows; nothing was deleted.");
         }
         auditLogService.logActionSync("BULK_DELETE_MEAL_RECORDS", "MEAL_RECORD", "BULK",
-                "Deleted " + deleted + " meal records (" + scope.label() + "): " + before.get("ateCount") + " ATE, "
+                "Moved to Trash " + deleted + " meal records (" + scope.label() + "): " + before.get("ateCount") + " ATE, "
                         + before.get("didNotEatCount") + " DID_NOT_EAT, total amount " + ((BigDecimal) before.get("totalAmount")).toPlainString()
                         + " RWF, meal dates " + before.get("firstMealDate") + " to " + before.get("lastMealDate")
                         + ". Requested by " + SecurityUtils.getCurrentUsername() + " at " + BusinessTime.nowForDisplay().withNano(0) + ".");

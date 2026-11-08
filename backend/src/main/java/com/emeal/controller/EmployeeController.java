@@ -117,9 +117,22 @@ public class EmployeeController {
 
     @PostMapping("/bulk-delete")
     @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
-    public ResponseEntity<ApiResponse<Void>> bulkDeleteEmployees(@RequestBody List<Long> ids) {
-        employeeService.bulkDeleteEmployees(ids);
-        return ResponseEntity.ok(ApiResponse.success("Selected employees deleted successfully"));
+    public ResponseEntity<ApiResponse<Integer>> bulkDeleteEmployees(@RequestBody List<Long> ids) {
+        int moved = employeeService.bulkDeleteEmployees(ids);
+        return ResponseEntity.ok(ApiResponse.success(moved + " employee(s) moved to Trash", moved));
+    }
+
+    /** Every employee id matching the current filters (all pages), for "select all". */
+    @GetMapping("/attendance/ids")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
+    public ResponseEntity<ApiResponse<List<Long>>> getEmployeeAttendanceIds(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String mealStatus,
+            @RequestParam(required = false) EmployeeStatus status) {
+        return ResponseEntity.ok(ApiResponse.success("Matching employee ids",
+                employeeService.getEmployeeAttendanceIds(date, query, department, mealStatus, status)));
     }
 
     // ==========================================
