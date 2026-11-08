@@ -6,6 +6,7 @@ import { Employee, MealRecord, MealStatus, QuickMealCheckResponse, UserDashboard
 import { getKigaliToday } from '../utils/dateUtils';
 import { Card } from '../components/common/Card';
 import { useAuth } from '../context/AuthContext';
+import { EditMealRecordModal } from '../components/meals/EditMealRecordModal';
 import {
   Hero,
   HeroStat,
@@ -46,9 +47,6 @@ const UserDashboard: React.FC = () => {
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [editingRecord, setEditingRecord] = useState<MealRecord | null>(null);
-  const [editStatus, setEditStatus] = useState<MealStatus>('ATE');
-  const [editAmount, setEditAmount] = useState<number>(0);
-  const [savingEdit, setSavingEdit] = useState(false);
   const [statsError, setStatsError] = useState(false);
 
   // "Add Meal Record" form. The amount is never typed: the backend sets ATE to the
@@ -277,45 +275,6 @@ const UserDashboard: React.FC = () => {
 
   const openEdit = (record: MealRecord) => {
     setEditingRecord(record);
-    setEditStatus(record.mealStatus);
-    setEditAmount(record.mealStatus === 'DID_NOT_EAT' ? 0 : Number(record.amount ?? 0));
-  };
-
-  // The amount follows the pricing rules (the backend enforces the same for USER accounts):
-  // DID_NOT_EAT is 0; an ATE record keeps its stored amount; changing to ATE uses the standard price.
-  const handleStatusChange = (status: MealStatus) => {
-    setEditStatus(status);
-    if (status === 'DID_NOT_EAT') {
-      setEditAmount(0);
-    } else if (editingRecord?.mealStatus === 'ATE' && Number(editingRecord.amount) > 0) {
-      setEditAmount(Number(editingRecord.amount));
-    } else {
-      setEditAmount(standardPrice ?? 0);
-    }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingRecord) return;
-    if (editStatus === 'ATE' && (!editAmount || editAmount <= 0)) {
-      addToast('error', 'The standard meal price could not be loaded. Refresh and try again.');
-      return;
-    }
-
-    setSavingEdit(true);
-    try {
-      await mealApi.updateMealRecord(editingRecord.id, {
-        mealStatus: editStatus,
-        amount: editStatus === 'DID_NOT_EAT' ? 0 : Number(editAmount),
-      });
-      addToast('success', 'Meal record updated successfully.');
-      setEditingRecord(null);
-      fetchStats();
-      fetchRecords(selectedDate);
-    } catch (err: any) {
-      addToast('error', err.response?.data?.message || 'Failed to update meal record.');
-    } finally {
-      setSavingEdit(false);
-    }
   };
 
   const dayAteCount = records.filter((r) => r.mealStatus === 'ATE').length;
@@ -537,44 +496,19 @@ const UserDashboard: React.FC = () => {
         )}
       </Card>
 
-      <Modal
-        isOpen={!!editingRecord}
+      <EditMealRecordModal
+        record={editingRecord}
         onClose={() => setEditingRecord(null)}
-        title={`Edit meal: ${editingRecord?.employeeName ?? ''}`}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Meal Status</label>
-            <select
-              value={editStatus}
-              onChange={(e) => handleStatusChange(e.target.value as MealStatus)}
-              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
-            >
-              <option value="ATE">ATE</option>
-              <option value="DID_NOT_EAT">DID NOT EAT</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Amount Used</label>
-            <input
-              type="text"
-              readOnly
-              disabled
-              value={`${(editStatus === 'DID_NOT_EAT' ? 0 : editAmount).toLocaleString()} ${stats?.currency ?? 'RWF'}`}
-              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm disabled:bg-slate-100"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">Calculated automatically: standard meal price for ATE, 0 for DID NOT EAT.</p>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setEditingRecord(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} isLoading={savingEdit}>
-              Save Changes
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        standardPrice={standardPrice}
+        currency={stats?.currency ?? 'RWF'}
+        onSaved={(_, msg) => {
+          addToast('success', msg);
+          setEditingRecord(null);
+          fetchStats();
+          fetchRecords(selectedDate);
+        }}
+        onError={(msg) => addToast('error', msg)}
+      />
 
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Meal Record">
         <div className="space-y-4">

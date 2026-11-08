@@ -55,8 +55,15 @@ export const employeeApi = {
     return res.data;
   },
 
+  /** Ids of every employee matching the filters, across all pages (for "select all"). */
+  attendanceIds: async (params: { date?: string; query?: string; department?: string; mealStatus?: string; status?: EmployeeStatus }) => {
+    const res = await axiosClient.get<ApiResponse<number[]>>('/employees/attendance/ids', { params });
+    return res.data.data;
+  },
+
+  /** Moves the employees (and their meal records) to the ADMIN Trash. */
   bulkDelete: async (ids: number[]) => {
-    const res = await axiosClient.post<ApiResponse<void>>('/employees/bulk-delete', ids);
+    const res = await axiosClient.post<ApiResponse<number>>('/employees/bulk-delete', ids);
     return res.data;
   },
 

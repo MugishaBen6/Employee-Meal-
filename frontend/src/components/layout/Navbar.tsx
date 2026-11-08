@@ -23,6 +23,7 @@ const PAGE_TITLES: { prefix: string; title: string; subtitle: string }[] = [
   { prefix: '/audit-logs', title: 'Activity Logs', subtitle: 'Audit trail of all changes' },
   { prefix: '/users', title: 'Users', subtitle: 'Accounts, roles and approvals' },
   { prefix: '/settings', title: 'Settings', subtitle: 'System configuration' },
+  { prefix: '/trash', title: 'Trash', subtitle: 'Deleted records recovery' },
 ];
 
 const roleTone: Record<string, string> = {

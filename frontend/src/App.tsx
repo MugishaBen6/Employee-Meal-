@@ -17,6 +17,7 @@ const Expenses = lazy(() => import('./pages/Expenses'));
 const AuditLogs = lazy(() => import('./pages/AuditLogs'));
 const Users = lazy(() => import('./pages/Users'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Trash = lazy(() => import('./pages/Trash'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 
@@ -173,6 +174,15 @@ export const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute roles={['ADMIN']}>
               <Users />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="trash"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <Trash />
             </ProtectedRoute>
           }
         />

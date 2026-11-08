@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { mealApi } from '../api/mealApi';
 import { employeeApi } from '../api/employeeApi';
 import { useAuth } from '../context/AuthContext';
+import { EditMealRecordModal } from '../components/meals/EditMealRecordModal';
 import { getKigaliToday } from '../utils/dateUtils';
 import { PageHero, heroBtn, KpiCard, StackBar, fmtNumber, fmtDayLabel } from '../components/dashboard/DashboardKit';
 import { Employee, MealRecord, MealStatus, QuickMealCheckResponse } from '../types';
@@ -28,6 +29,7 @@ import {
   Briefcase,
   Layers,
   UtensilsCrossed,
+  Trash2,
 } from 'lucide-react';
 
 export const MealRecording: React.FC = () => {
@@ -71,6 +73,10 @@ export const MealRecording: React.FC = () => {
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Edit any (including past) meal record; ADMIN can also move one to Trash.
+  const [editRecord, setEditRecord] = useState<MealRecord | null>(null);
+  const [trashRecord, setTrashRecord] = useState<MealRecord | null>(null);
+  const [trashing, setTrashing] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = (type: 'success' | 'error' | 'info', message: string) => {
@@ -136,6 +142,35 @@ export const MealRecording: React.FC = () => {
       setEmployeeHistory([]);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  // Reload everything that shows meal records after an edit or a delete.
+  const refreshAfterChange = async () => {
+    fetchTodayRecords();
+    if (selectedEmployee) {
+      fetchEmployeeHistory(selectedEmployee.id);
+      try {
+        setQuickCheck(await mealApi.quickCheck(selectedEmployee.id.toString(), recordDate));
+      } catch {
+        /* the form keeps its last state */
+      }
+    }
+  };
+
+  const confirmTrash = async () => {
+    if (!trashRecord) return;
+    setTrashing(true);
+    try {
+      await mealApi.deleteMealRecord(trashRecord.id);
+      addToast('success', `Meal record of ${trashRecord.employeeName} on ${trashRecord.mealDate} moved to Trash.`);
+      setTrashRecord(null);
+      setIsEditingExisting(false);
+      refreshAfterChange();
+    } catch (e: any) {
+      addToast('error', e.response?.data?.message || 'Could not delete the meal record.');
+    } finally {
+      setTrashing(false);
     }
   };
 
@@ -630,6 +665,27 @@ export const MealRecording: React.FC = () => {
                               {h.mealStatus}
                             </Badge>
                             <span className="font-mono font-bold text-slate-800">{h.amount || 0} RWF</span>
+                            {(!isLimitedUser || ownsRecord(h)) && (
+                              <button
+                                type="button"
+                                onClick={() => setEditRecord(h)}
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                                title="Edit this record"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" /> Edit
+                              </button>
+                            )}
+                            {hasRole('ADMIN') && (
+                              <button
+                                type="button"
+                                onClick={() => setTrashRecord(h)}
+                                className="inline-flex items-center rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                title="Move to Trash"
+                                aria-label="Move to Trash"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -856,6 +912,39 @@ export const MealRecording: React.FC = () => {
             </div>
           )}
         </div>
+      </Modal>
+
+      <EditMealRecordModal
+        record={editRecord}
+        onClose={() => setEditRecord(null)}
+        standardPrice={quickCheck?.defaultMealPrice}
+        onSaved={(_, msg) => {
+          addToast('success', msg);
+          setEditRecord(null);
+          setIsEditingExisting(false);
+          refreshAfterChange();
+        }}
+        onError={(msg) => addToast('error', msg)}
+      />
+
+      <Modal isOpen={!!trashRecord} onClose={() => setTrashRecord(null)} title="Move meal record to Trash?">
+        {trashRecord && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-700">
+              <b>{trashRecord.employeeName}</b> · {trashRecord.mealDate} · {trashRecord.mealStatus} ·{' '}
+              {Number(trashRecord.amount).toLocaleString()} RWF
+            </p>
+            <p className="text-xs text-slate-500">
+              It will no longer count in reports or totals. An ADMIN can restore it from Trash at any time.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTrashRecord(null)}>Cancel</Button>
+              <Button variant="danger" onClick={confirmTrash} isLoading={trashing} className="gap-1.5">
+                <Trash2 className="w-4 h-4" /> Move to Trash
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ToastContainer toasts={toasts} onClose={removeToast} />

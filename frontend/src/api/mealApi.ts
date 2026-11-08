@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import { ApiResponse, MealRecord, MealStatus, PageResponse, QuickMealCheckResponse, RecordMealRequest } from '../types';
+import { ApiResponse, MealRecord, MealStatus, PageResponse, QuickMealCheckResponse, RecordMealRequest, UpdateMealRecordRequest } from '../types';
 
 export const mealApi = {
   recordMeal: async (data: RecordMealRequest) => {
@@ -33,7 +33,7 @@ export const mealApi = {
     return res.data.data;
   },
 
-  updateMealRecord: async (id: number, data: { mealStatus: MealStatus; amount: number }) => {
+  updateMealRecord: async (id: number, data: UpdateMealRecordRequest) => {
     const res = await axiosClient.put<ApiResponse<MealRecord>>(`/meals/${id}`, data);
     return res.data.data;
   },

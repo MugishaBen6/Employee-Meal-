@@ -113,6 +113,7 @@ export const Employees: React.FC = () => {
   // Multi-Selection State
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [selectingAll, setSelectingAll] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Toast
@@ -297,8 +298,10 @@ export const Employees: React.FC = () => {
     });
   };
 
+  const allOnPageSelected = attendanceList.length > 0 && attendanceList.every((emp) => selectedIds.has(emp.id));
+
   const handleSelectAll = () => {
-    if (selectedIds.size === attendanceList.length && attendanceList.length > 0) {
+    if (allOnPageSelected) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(attendanceList.map((emp) => emp.id)));
@@ -309,13 +312,42 @@ export const Employees: React.FC = () => {
     setSelectedIds(new Set());
   };
 
+  // A selection belongs to one set of filters: changing them clears it, so nothing hidden is deleted.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [selectedDate, debouncedQuery, department, mealStatusFilter, employeeStatusFilter]);
+
+  /** Selects every employee matching the current filters, on all pages. */
+  const handleSelectAllMatching = async () => {
+    setSelectingAll(true);
+    try {
+      const ids = await employeeApi.attendanceIds({
+        date: selectedDate,
+        query: debouncedQuery || undefined,
+        department: department || undefined,
+        mealStatus: mealStatusFilter || undefined,
+        status: (employeeStatusFilter as EmployeeStatus) || undefined,
+      });
+      setSelectedIds(new Set(ids));
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.message || 'Could not select all employees', type: 'error' });
+    } finally {
+      setSelectingAll(false);
+    }
+  };
+
+  const openTrashOne = (emp: EmployeeAttendance) => {
+    setSelectedIds(new Set([emp.id]));
+    setIsBulkDeleteModalOpen(true);
+  };
+
   const handleConfirmBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
     try {
-      await employeeApi.bulkDelete(Array.from(selectedIds));
+      const res = await employeeApi.bulkDelete(Array.from(selectedIds));
       setToast({
-        message: `Successfully deleted ${selectedIds.size} selected employee(s)!`,
+        message: `${res.data ?? selectedIds.size} employee(s) moved to Trash. An ADMIN can restore them from Trash.`,
         type: 'success',
       });
       setSelectedIds(new Set());
@@ -397,6 +429,16 @@ export const Employees: React.FC = () => {
               <UserX className="w-4 h-4" />
             </button>
           )}
+
+          {/* Move to Trash (recoverable by ADMIN) */}
+          <button
+            onClick={() => openTrashOne(emp)}
+            title="Move to Trash"
+            aria-label="Move to Trash"
+            className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 active:bg-rose-100 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </>
       )}
     </div>
@@ -618,6 +660,25 @@ export const Employees: React.FC = () => {
                 </Button>
               </div>
             )}
+            {hasRole('ADMIN', 'HR') && totalElements > attendanceList.length && (
+              <div className="w-full text-xs text-indigo-900">
+                {selectedIds.size >= totalElements ? (
+                  <span className="font-semibold">All {totalElements.toLocaleString()} employees matching the filters are selected (all pages).</span>
+                ) : (
+                  <>
+                    {selectedIds.size} selected on this page.{' '}
+                    <button
+                      type="button"
+                      onClick={handleSelectAllMatching}
+                      disabled={selectingAll}
+                      className="font-bold text-indigo-700 underline hover:text-indigo-900 disabled:opacity-60"
+                    >
+                      {selectingAll ? 'Selecting…' : `Select all ${totalElements.toLocaleString()} employees on all pages`}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -628,7 +689,7 @@ export const Employees: React.FC = () => {
               <input
                 type="checkbox"
                 aria-label="Select all employees on this page"
-                checked={attendanceList.length > 0 && selectedIds.size === attendanceList.length}
+                checked={allOnPageSelected}
                 onChange={handleSelectAll}
                 className="w-[18px] h-[18px] rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
               />
@@ -694,7 +755,7 @@ export const Employees: React.FC = () => {
                   <input
                     type="checkbox"
                     aria-label="Select all employees on this page"
-                    checked={attendanceList.length > 0 && selectedIds.size === attendanceList.length}
+                    checked={allOnPageSelected}
                     ref={(el) => {
                       if (el) {
                         el.indeterminate = selectedIds.size > 0 && selectedIds.size < attendanceList.length;
@@ -994,7 +1055,7 @@ export const Employees: React.FC = () => {
       <Modal
         isOpen={isBulkDeleteModalOpen}
         onClose={() => !bulkDeleting && setIsBulkDeleteModalOpen(false)}
-        title="Delete Selected Employees"
+        title="Move Employees to Trash"
         maxWidth="md"
       >
         <div className="space-y-4">
@@ -1002,10 +1063,11 @@ export const Employees: React.FC = () => {
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">
-                Are you sure you want to delete {selectedIds.size} selected employee{selectedIds.size > 1 ? 's' : ''}?
+                Move {selectedIds.size.toLocaleString()} employee{selectedIds.size > 1 ? 's' : ''} to Trash?
               </p>
               <p className="text-xs text-rose-700 mt-1">
-                This will permanently remove the selected employee profiles and all their associated meal records from the system. This action cannot be undone.
+                They and all their meal records leave the employee list, reports and totals. Nothing is destroyed: an ADMIN
+                can restore them from Trash with all their original information.
               </p>
             </div>
           </div>
@@ -1026,6 +1088,11 @@ export const Employees: React.FC = () => {
                     <span className="text-slate-500 font-medium">{emp.position || 'Worker'}</span>
                   </div>
                 ))}
+              {selectedIds.size > attendanceList.filter((emp) => selectedIds.has(emp.id)).length && (
+                <p className="py-2 px-2 text-xs font-semibold text-slate-500">
+                  + {(selectedIds.size - attendanceList.filter((emp) => selectedIds.has(emp.id)).length).toLocaleString()} more on other pages
+                </p>
+              )}
             </div>
           </div>
 
@@ -1046,7 +1113,7 @@ export const Employees: React.FC = () => {
               className="flex items-center justify-center gap-1.5"
             >
               <Trash2 className="w-4 h-4" />
-              <span>Confirm & Delete {selectedIds.size} Staff</span>
+              <span>Move {selectedIds.size.toLocaleString()} to Trash</span>
             </Button>
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
   Activity,
   UserCog,
   Settings as SettingsIcon,
+  Trash2,
   LogOut,
   X,
 } from 'lucide-react';
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Expenses', path: '/expenses', icon: DollarSign, roles: ['ADMIN', 'MANAGING_DIRECTOR', 'ACCOUNTANT'], section: 'operations' },
   { label: 'Activity Logs', path: '/audit-logs', icon: Activity, roles: ['ADMIN', 'MANAGING_DIRECTOR'], section: 'administration' },
   { label: 'Users', path: '/users', icon: UserCog, roles: ['ADMIN'], section: 'administration' },
+  { label: 'Trash', path: '/trash', icon: Trash2, roles: ['ADMIN'], section: 'administration' },
   { label: 'Settings', path: '/settings', icon: SettingsIcon, roles: ['ADMIN'], section: 'administration' },
 ];
 

@@ -68,7 +68,7 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
     try {
       const res = await mealApi.maintenanceDelete(summary.totalRecords, range);
       setLastResult(
-        `${res.data.deletedRecords.toLocaleString()} meal record(s) deleted (${Number(res.data.totalAmount).toLocaleString()} RWF). Backup: ${backupFile}`
+        `${res.data.deletedRecords.toLocaleString()} meal record(s) moved to Trash (${Number(res.data.totalAmount).toLocaleString()} RWF). Backup: ${backupFile}`
       );
       onToast('success', res.message);
       reset();
@@ -90,8 +90,8 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
         <div>
           <h2 className="text-base font-bold text-slate-900">Meal data maintenance</h2>
           <p className="text-xs text-slate-600 mt-0.5">
-            Clear meal records before re-importing clean data. Employees, users and audit logs are not touched.
-            Every step is recorded in the Activity Logs.
+            Clear meal records before re-importing clean data. Deleted records go to Trash, where an ADMIN can restore
+            them. Employees, users and audit logs are not touched. Every step is recorded in the Activity Logs.
           </p>
         </div>
       </div>
@@ -208,7 +208,7 @@ export const MealDataMaintenance: React.FC<{ onToast: (type: 'success' | 'error'
           </div>
           <p className="flex items-start gap-1.5 text-[11px] text-rose-700">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" />
-            This cannot be undone from the app. If the number of records changes after you check, the delete is refused.
+            The records move to Trash (restorable there). If the number of records changes after you check, the delete is refused.
           </p>
         </div>
 

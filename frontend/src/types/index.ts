@@ -31,6 +31,8 @@ export interface Employee {
   status: EmployeeStatus;
   createdAt: string;
   updatedAt: string;
+  /** Username that created the employee (empty for older employees). */
+  createdBy?: string | null;
 }
 
 export interface EmployeeAttendance {
@@ -107,6 +109,16 @@ export interface MealRecord {
   amount: number;
   recordedBy: string;
   createdAt: string;
+}
+
+/** Edit an existing meal record. Optional fields are changed only when sent. */
+export interface UpdateMealRecordRequest {
+  mealStatus: MealStatus;
+  amount: number;
+  mealDate?: string;
+  employeeId?: number;
+  employeeName?: string;
+  position?: string;
 }
 
 export interface RecordMealRequest {
