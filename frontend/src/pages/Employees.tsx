@@ -381,10 +381,8 @@ export const Employees: React.FC = () => {
         DID NOT EAT
       </span>
     ) : (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/15 whitespace-nowrap">
-        <Clock className="w-3.5 h-3.5 text-slate-400" />
-        NOT RECORDED
-      </span>
+      // No meal record on this date (only listed under "All staff"): left empty.
+      <span className="text-slate-300" aria-label="No meal record">—</span>
     );
 
   const renderAmount = (emp: EmployeeAttendance) =>
@@ -602,9 +600,10 @@ export const Employees: React.FC = () => {
               }}
               className="w-full h-11 bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 text-sm font-medium text-slate-800 focus:outline-none cursor-pointer"
             >
-              <option value="">All Meal Status</option>
+              <option value="">Recorded meals</option>
               <option value="ATE">ATE</option>
               <option value="DID_NOT_EAT">DID NOT EAT</option>
+              <option value="ALL_STAFF">All staff</option>
             </select>
           </div>
 
@@ -707,8 +706,14 @@ export const Employees: React.FC = () => {
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
                 <Users className="w-6 h-6 text-slate-400" />
               </div>
-              <p className="text-sm font-semibold text-slate-700">No employees found</p>
-              <p className="mt-1 text-xs text-slate-500">Try another date or clear the filters.</p>
+              <p className="text-sm font-semibold text-slate-700">
+                {mealStatusFilter === 'ALL_STAFF' ? 'No employees found' : 'No meal records for this date'}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {mealStatusFilter === 'ALL_STAFF'
+                  ? 'Try another search or clear the filters.'
+                  : 'Choose another date, or pick "All staff" to see every employee.'}
+              </p>
             </div>
           ) : (
             <ul className="space-y-2.5">
@@ -785,7 +790,9 @@ export const Employees: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
                     <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                    No employees found matching the filter criteria.
+                    {mealStatusFilter === 'ALL_STAFF'
+                      ? 'No employees found matching the filter criteria.'
+                      : 'No meal records for this date. Choose another date, or pick "All staff" to see every employee.'}
                   </td>
                 </tr>
               ) : (
