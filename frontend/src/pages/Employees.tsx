@@ -511,10 +511,11 @@ export const Employees: React.FC = () => {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard
           label="Total Staff"
-          value={summaryLoaded ? fmtNumber(summary.totalActiveEmployees) : '—'}
+          // Same number of people as the table below (0 when the list is empty).
+          value={summaryLoaded ? fmtNumber(totalElements) : '—'}
           icon={Users}
           tone="sky"
-          hint="Active employees"
+          hint={mealStatusFilter === 'ALL_STAFF' ? 'All employees in the list' : 'With a meal record on this date'}
         />
         <KpiCard
           label="Recorded ATE"
